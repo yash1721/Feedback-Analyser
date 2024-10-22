@@ -1,4 +1,4 @@
-# Feedback Analyzer
+# Feedback Analyser
 
 **AI-Powered Feedback Extraction and Sentiment Analysis System**
 
