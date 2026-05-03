@@ -1,0 +1,23 @@
+feedback_data = [
+    {"text": "The new website layout is great, but I wish the navigation was smoother on mobile devices."},
+    {"text": "I've noticed a significant delay in delivery times recently. Could you look into it?"},
+    {"text": "I had a payment failure while checking out. Can you make the process more seamless?"},
+    {"text": "The mobile app is visually appealing, but it takes too long to load certain sections."},
+    {"text": "I love the targeted email campaigns; they're very relevant to my interests."},
+    {"text": "The new live chat feature is helpful, but the response time could be faster."},
+    {"text": "The knowledge base is very informative, but it's difficult to search for specific topics."},
+    {"text": "I appreciate the improved security during checkout. It makes me feel more confident buying here."},
+    {"text": "The automated ticket response system is great, but I still prefer talking to a real person."},
+    {"text": "The recent branding update is excellent! It makes your website look very modern and professional."},
+    {"text": "The new referral program is interesting, but I'm not sure how to redeem my points."},
+    {"text": "I've noticed more personalized recommendations in the app recently. Keep it up!"},
+    {"text": "I tried your cryptocurrency payment option, and it worked flawlessly. Great addition!"},
+    {"text": "The loyalty program is nice, but it would be better if rewards were easier to redeem."},
+    {"text": "The new dark mode is a game changer! I use the app more often at night now."},
+    {"text": "Shipping has improved, but I still sometimes receive damaged products."},
+    {"text": "The wellness program you launched for employees is inspiring. More companies should follow your lead."},
+    {"text": "I really like the animations on the homepage. They make the browsing experience fun and engaging."},
+    {"text": "The app crashes occasionally when using AI features. Hope this can be fixed soon."},
+    {"text": "I saw an ad for your brand, and it caught my attention immediately. Great job!"},
+]
+
