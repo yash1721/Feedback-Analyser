@@ -24,8 +24,11 @@ class Settings(BaseSettings):
     sentiment_model_name: str = "distilbert-base-uncased-finetuned-sst-2-english"
     retrieval_top_k: int = 3
 
+    database_url: str = "postgresql+psycopg://feedbackiq:feedbackiq@localhost:5432/feedbackiq"
+    test_database_url: str = "sqlite+pysqlite:///:memory:"
+    local_storage_dir: str = ".local_storage"
+
 
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
-

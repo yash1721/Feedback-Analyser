@@ -16,6 +16,11 @@ class BadRequestError(FeedbackIQError):
     code = "bad_request"
 
 
+class NotFoundError(FeedbackIQError):
+    status_code = 404
+    code = "not_found"
+
+
 class UnsafeUrlError(BadRequestError):
     code = "unsafe_url"
 
@@ -43,4 +48,3 @@ class OcrError(FeedbackIQError):
 class ModelUnavailableError(FeedbackIQError):
     status_code = 503
     code = "model_unavailable"
-

@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from app.api.v1 import feedback_routes, health_routes, ocr_routes, retrieval_routes
+from app.api.v1 import feedback_records_routes, feedback_routes, health_routes, ocr_routes, retrieval_routes
 from app.config import get_settings
 from app.core.exceptions import FeedbackIQError
 from app.core.logging import configure_logging
@@ -18,6 +18,7 @@ def create_app() -> FastAPI:
     application.include_router(health_routes.router, prefix=settings.api_v1_prefix)
     application.include_router(ocr_routes.router, prefix=settings.api_v1_prefix)
     application.include_router(feedback_routes.router, prefix=settings.api_v1_prefix)
+    application.include_router(feedback_records_routes.router, prefix=settings.api_v1_prefix)
     application.include_router(retrieval_routes.router, prefix=settings.api_v1_prefix)
 
     @application.exception_handler(FeedbackIQError)
@@ -38,4 +39,3 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
-
