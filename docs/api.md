@@ -527,3 +527,47 @@ PENDING -> QUEUED -> PROCESSING -> COMPLETED
 EXTRACTED -> QUEUED -> PROCESSING -> COMPLETED
 QUEUED/PROCESSING -> FAILED
 ```
+
+## Knowledge
+
+Create a knowledge document:
+
+```http
+POST /knowledge/documents
+Content-Type: application/json
+
+{
+  "title": "Payment runbook",
+  "text": "Payment failures should be routed to the Payment Team.",
+  "source_type": "manual",
+  "source_name": "runbook",
+  "metadata": {
+    "team": "Payment Team",
+    "product_area": "checkout",
+    "language": "en",
+    "tags": ["payment", "checkout"]
+  }
+}
+```
+
+Index a document:
+
+```http
+POST /knowledge/documents/{document_id}/index
+```
+
+Search with metadata filters and persisted evidence:
+
+```http
+POST /retrieval/search
+Content-Type: application/json
+
+{
+  "query": "checkout payment failed",
+  "top_k": 3,
+  "filters": {"team": "Payment Team"},
+  "persist_trace": true
+}
+```
+
+The response preserves `query`, `results`, and `rag_context`, and now also includes `trace_id`, ranks, point IDs, chunk IDs, and metadata when available.

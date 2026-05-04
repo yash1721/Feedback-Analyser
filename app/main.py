@@ -7,6 +7,7 @@ from app.api.v1 import (
     feedback_routes,
     health_routes,
     ingestion_routes,
+    knowledge_routes,
     ocr_routes,
     processing_routes,
     retrieval_routes,
@@ -26,6 +27,7 @@ def create_app() -> FastAPI:
     application.include_router(health_routes.router, prefix=settings.api_v1_prefix)
     application.include_router(ocr_routes.router, prefix=settings.api_v1_prefix)
     application.include_router(ingestion_routes.router, prefix=settings.api_v1_prefix)
+    application.include_router(knowledge_routes.router, prefix=settings.api_v1_prefix)
     application.include_router(feedback_routes.router, prefix=settings.api_v1_prefix)
     application.include_router(feedback_records_routes.router, prefix=settings.api_v1_prefix)
     application.include_router(processing_routes.router, prefix=settings.api_v1_prefix)

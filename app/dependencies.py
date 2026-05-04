@@ -19,12 +19,18 @@ from app.domain.ingestion.pdf_text_extractor import PdfTextExtractor
 from app.domain.ingestion.tesseract_ocr import TesseractOcrEngine
 from app.domain.ingestion.text_normalizer import TextNormalizer
 from app.domain.knowledge.external_data import external_data
+from app.domain.knowledge.repository import KnowledgeRepository
+from app.domain.knowledge.service import KnowledgeService
 from app.domain.processing.queue import CeleryProcessingQueue, ProcessingQueue
 from app.domain.processing.service import ProcessingService
+from app.domain.retrieval.bge_m3_embeddings import BGEM3EmbeddingModel
 from app.domain.retrieval.faiss_vector_store import FaissVectorStore
+from app.domain.retrieval.embedding_model import EmbeddingModel
+from app.domain.retrieval.qdrant_vector_store import QdrantVectorStore
 from app.domain.retrieval.rag_context_builder import RagContextBuilder
 from app.domain.retrieval.retrieval_service import RetrievalService
 from app.domain.retrieval.sentence_transformer_embeddings import SentenceTransformerEmbeddingModel
+from app.domain.retrieval.vector_store import VectorStore
 from app.domain.routing.keyword_team_router import KeywordTeamRouter
 from app.domain.sentiment.hf_sentiment_analyzer import HuggingFaceSentimentAnalyzer
 from app.domain.storage.local_storage_provider import LocalFileStorageProvider
@@ -48,23 +54,88 @@ def get_ingestion_service() -> IngestionService:
 
 
 @lru_cache
-def get_retrieval_service() -> RetrievalService:
+def get_embedding_model() -> EmbeddingModel:
     settings = get_settings()
-    return RetrievalService(
-        embedding_model=SentenceTransformerEmbeddingModel(settings.embedding_model_name),
-        vector_store=FaissVectorStore(),
-        context_builder=RagContextBuilder(),
-        knowledge_base=external_data,
-    )
+    if settings.embedding_provider == "bge_m3":
+        return BGEM3EmbeddingModel(settings.embedding_model_name)
+    return SentenceTransformerEmbeddingModel(settings.embedding_model_name)
 
 
 @lru_cache
-def get_feedback_analysis_service() -> FeedbackAnalysisService:
+def get_vector_store() -> VectorStore:
+    settings = get_settings()
+    if settings.vector_provider == "qdrant":
+        return QdrantVectorStore(
+            url=settings.qdrant_url,
+            collection_name=settings.qdrant_collection_name,
+            vector_size=settings.vector_size,
+            distance=settings.vector_distance,
+        )
+    return FaissVectorStore()
+
+
+def get_knowledge_repository(session: Session = Depends(get_db_session)) -> KnowledgeRepository:
+    return KnowledgeRepository(session)
+
+
+def get_knowledge_service(
+    repository: KnowledgeRepository = Depends(get_knowledge_repository),
+    embedding_model: EmbeddingModel = Depends(get_embedding_model),
+    vector_store: VectorStore = Depends(get_vector_store),
+) -> KnowledgeService:
+    return KnowledgeService(
+        repository=repository,
+        embedding_model=embedding_model,
+        vector_store=vector_store,
+        settings=get_settings(),
+    )
+
+
+def build_retrieval_service(knowledge_service: KnowledgeService | None = None) -> RetrievalService:
+    settings = get_settings()
+    return RetrievalService(
+        embedding_model=get_embedding_model(),
+        vector_store=get_vector_store(),
+        context_builder=RagContextBuilder(),
+        knowledge_base=external_data,
+        settings=settings,
+        knowledge_service=knowledge_service,
+    )
+
+
+def get_retrieval_service(
+    embedding_model: EmbeddingModel = Depends(get_embedding_model),
+    vector_store: VectorStore = Depends(get_vector_store),
+    knowledge_service: KnowledgeService = Depends(get_knowledge_service),
+) -> RetrievalService:
+    settings = get_settings()
+    return RetrievalService(
+        embedding_model=embedding_model,
+        vector_store=vector_store,
+        context_builder=RagContextBuilder(),
+        knowledge_base=external_data,
+        settings=settings,
+        knowledge_service=knowledge_service,
+    )
+
+
+def get_feedback_analysis_service(
+    retrieval_service: RetrievalService = Depends(get_retrieval_service),
+) -> FeedbackAnalysisService:
     settings = get_settings()
     return FeedbackAnalysisService(
         sentiment_analyzer=HuggingFaceSentimentAnalyzer(settings.sentiment_model_name),
         team_router=KeywordTeamRouter(),
-        retrieval_service=get_retrieval_service(),
+        retrieval_service=retrieval_service,
+    )
+
+
+def get_feedback_analysis_service_for_worker() -> FeedbackAnalysisService:
+    settings = get_settings()
+    return FeedbackAnalysisService(
+        sentiment_analyzer=HuggingFaceSentimentAnalyzer(settings.sentiment_model_name),
+        team_router=KeywordTeamRouter(),
+        retrieval_service=build_retrieval_service(),
     )
 
 

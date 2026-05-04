@@ -58,3 +58,16 @@ Phase 3 adds a producer-consumer workflow:
 7. `FeedbackService` persists `PROCESSING`, `COMPLETED`, or `FAILED` state plus analysis or error fields.
 
 PostgreSQL is the business source of truth. Celery task IDs are stored on `feedback_records.processing_task_id` for observability, but status polling reads from the database rather than treating Celery's result backend as the product state.
+
+## Phase 4 Retrieval Flow
+
+Phase 4 separates relational knowledge from vector indexing:
+
+1. `knowledge_documents` stores source-level metadata.
+2. `knowledge_chunks` stores retrievable text chunks and Qdrant point IDs.
+3. BGE-M3 generates dense embeddings lazily.
+4. Qdrant stores vectors with metadata payloads and performs HNSW/cosine search.
+5. `RetrievalService` builds RAG context from retrieved chunks.
+6. `retrieval_traces` and `retrieval_trace_items` persist evidence when requested.
+
+FAISS remains available through the same `VectorStore` abstraction, but Qdrant is the production retrieval provider.

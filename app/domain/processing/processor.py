@@ -2,7 +2,7 @@ from contextlib import AbstractContextManager
 from typing import Callable
 
 from app.config import get_settings
-from app.dependencies import get_feedback_analysis_service
+from app.dependencies import get_feedback_analysis_service_for_worker
 from app.domain.feedback.service import FeedbackService
 from app.domain.processing.service import ProcessingService
 
@@ -15,7 +15,7 @@ def process_feedback_record_with_scope(
     with feedback_service_scope_provider() as feedback_service:
         service = ProcessingService(
             feedback_service=feedback_service,
-            analysis_service=get_feedback_analysis_service(),
+            analysis_service=get_feedback_analysis_service_for_worker(),
             queue=None,
             settings=get_settings(),
         )

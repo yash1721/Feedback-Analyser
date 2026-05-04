@@ -35,7 +35,7 @@ Phase 1 uses PostgreSQL for local app runtime and SQLite for automated tests.
 Start Postgres and Redis with Docker Compose:
 
 ```powershell
-docker compose up feedbackiq-db feedbackiq-redis -d
+docker compose up feedbackiq-db feedbackiq-redis feedbackiq-qdrant -d
 ```
 
 The default local database URL is:
@@ -77,6 +77,13 @@ CELERY_RESULT_BACKEND=redis://localhost:6379/1
 PROCESSING_MAX_RETRIES=3
 PROCESSING_RETRY_BACKOFF_SECONDS=5
 CELERY_TASK_ALWAYS_EAGER=false
+VECTOR_PROVIDER=qdrant
+EMBEDDING_PROVIDER=bge_m3
+EMBEDDING_MODEL_NAME=BAAI/bge-m3
+QDRANT_URL=http://localhost:6333
+QDRANT_COLLECTION_NAME=feedbackiq_knowledge
+VECTOR_SIZE=1024
+VECTOR_DISTANCE=cosine
 ```
 
 Open:
@@ -272,6 +279,16 @@ On Windows, the worker command uses Celery's solo pool:
 ```powershell
 celery -A app.workers.celery_app worker --loglevel=info --pool=solo
 ```
+
+## Phase 4 Live Runtime Verification
+
+Use this gate after retrieval changes. It verifies PostgreSQL, Qdrant, migrations, knowledge indexing, retrieval, evidence persistence, and tests:
+
+```powershell
+.\scripts\verify_phase4_live.ps1
+```
+
+BGE-M3 loads lazily on first indexing/search use. The first run may download the model.
 
 ## Common Setup Failures
 

@@ -16,6 +16,8 @@ FeedbackIQ is a FastAPI backend for OCR-based feedback extraction, vector retrie
 - Ingests feedback from text, image uploads, safe image URLs, PDFs, and CSV files.
 - Enqueues feedback records for background processing with Celery and Redis.
 - Persists async processing status, task IDs, analysis results, and failures.
+- Indexes knowledge documents into Qdrant for metadata-aware retrieval.
+- Stores retrieval traces as RAG evidence.
 
 ## Architecture
 
@@ -32,6 +34,8 @@ Phase 1 uses a Controller-Service-Repository shape:
 See `docs/architecture.md` and `docs/design-decisions.md` for the design notes.
 
 Phase 3 adds queue-based processing. The API enqueues work, a Celery worker consumes it, and PostgreSQL remains the source of truth for `QUEUED`, `PROCESSING`, `COMPLETED`, and `FAILED` states.
+
+Phase 4 adds Qdrant-backed retrieval. PostgreSQL stores documents, chunks, and retrieval evidence; Qdrant stores vector points and metadata payloads for fast semantic search.
 
 ## Windows Setup
 
@@ -56,7 +60,7 @@ copy .env.example .env
 Run PostgreSQL locally with Docker Compose:
 
 ```powershell
-docker compose up feedbackiq-db feedbackiq-redis -d
+docker compose up feedbackiq-db feedbackiq-redis feedbackiq-qdrant -d
 ```
 
 Apply database migrations:
@@ -401,6 +405,16 @@ Phase 3 verifies PostgreSQL, Redis, FastAPI, and Celery together:
 ```
 
 The script starts PostgreSQL and Redis, applies migrations, starts the API and worker, ingests text, enqueues processing, polls status, and runs the Docker-free test suite.
+
+## Phase 4 Live Verification
+
+Phase 4 verifies PostgreSQL, Qdrant, FastAPI, indexing, metadata-filtered retrieval, trace persistence, and pytest:
+
+```powershell
+.\scripts\verify_phase4_live.ps1
+```
+
+First use of BGE-M3 may download a large model.
 
 ## Troubleshooting
 

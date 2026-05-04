@@ -71,3 +71,15 @@ Enqueue uses record state for idempotency. `PENDING` and `EXTRACTED` records can
 ## Bounded Retry Policy
 
 Celery retries transient processing failures with bounded exponential backoff. Permanent problems such as missing text or invalid lifecycle state are persisted as `FAILED` without retry. This prevents temporary model/provider issues from becoming immediate final failures while avoiding infinite retry loops for bad data.
+
+## Qdrant For Production Retrieval
+
+Phase 4 uses Qdrant because it provides an API-based vector database, Docker-friendly local development, HNSW indexing, cosine similarity, and metadata payload filtering. FAISS stays available for local/prototype retrieval, but Qdrant gives a stronger production backend architecture.
+
+## BGE-M3 Embeddings
+
+BGE-M3 is the default Phase 4 embedding model because it is a strong open-source multilingual retrieval model and is better suited to English/Hindi feedback than MiniLM. It is loaded lazily so app import and Docker-free tests remain fast.
+
+## Retrieval Evidence
+
+Retrieval traces are stored in separate tables instead of `feedback_records`. Evidence can be many-to-one with feedback records, can grow over time, and includes scores/ranks/metadata that should not bloat the feedback row.

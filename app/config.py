@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     ocr_languages: str = "eng+hin"
     tesseract_timeout_seconds: int = 5
 
-    embedding_model_name: str = "sentence-transformers/all-MiniLM-L6-v2"
+    embedding_model_name: str = "BAAI/bge-m3"
     sentiment_model_name: str = "distilbert-base-uncased-finetuned-sst-2-english"
     retrieval_top_k: int = 3
 
@@ -35,6 +35,14 @@ class Settings(BaseSettings):
     processing_max_retries: int = Field(default=3, ge=0)
     processing_retry_backoff_seconds: int = Field(default=5, ge=1)
     celery_task_always_eager: bool = False
+    vector_provider: Literal["faiss", "qdrant"] = "qdrant"
+    embedding_provider: Literal["minilm", "bge_m3"] = "bge_m3"
+    qdrant_url: str = "http://localhost:6333"
+    qdrant_collection_name: str = "feedbackiq_knowledge"
+    vector_size: int = Field(default=1024, ge=1)
+    vector_distance: Literal["cosine", "dot", "euclidean"] = "cosine"
+    knowledge_chunk_size_chars: int = Field(default=1200, ge=100)
+    knowledge_chunk_overlap_chars: int = Field(default=200, ge=0)
 
 
 @lru_cache

@@ -1,7 +1,7 @@
 import numpy as np
 
 from app.core.exceptions import ModelUnavailableError
-from app.domain.retrieval.vector_store import SearchResult, VectorStore
+from app.domain.retrieval.vector_store import SearchResult, UpsertedVector, VectorChunk, VectorStore
 
 
 class FaissVectorStore(VectorStore):
@@ -24,9 +24,16 @@ class FaissVectorStore(VectorStore):
         query = np.asarray(query_embedding, dtype="float32")
         scores, indices = self._index.search(query, min(top_k, len(self._texts)))
         return [
-            SearchResult(text=self._texts[index], score=float(score))
-            for score, index in zip(scores[0], indices[0])
+            SearchResult(text=self._texts[index], score=float(score), rank=rank)
+            for rank, (score, index) in enumerate(zip(scores[0], indices[0]), start=1)
             if index != -1
+        ]
+
+    def upsert_chunks(self, chunks: list[VectorChunk], embeddings: np.ndarray) -> list[UpsertedVector]:
+        self.add_texts([chunk.text for chunk in chunks], embeddings)
+        return [
+            UpsertedVector(chunk_id=chunk.id, point_id=chunk.point_id or str(chunk.id))
+            for chunk in chunks
         ]
 
     def _faiss(self):
@@ -35,4 +42,3 @@ class FaissVectorStore(VectorStore):
         except ImportError as exc:
             raise ModelUnavailableError("faiss-cpu is not installed.") from exc
         return faiss
-
