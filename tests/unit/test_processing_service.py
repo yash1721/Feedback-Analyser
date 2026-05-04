@@ -6,6 +6,7 @@ from sqlalchemy.pool import StaticPool
 from app.config import Settings
 from app.core.exceptions import BadRequestError, ModelUnavailableError
 from app.db.base import Base
+from app.domain.analysis.schemas import AnalysisResponse, AnalysisCategory, SentimentLabel, Severity, StructuredAnalysisOutput, ValidationStatus
 from app.domain.feedback.feedback_analysis_service import FeedbackAnalysisResult
 from app.domain.feedback.models import FeedbackProcessingStatus, FeedbackRecord, FeedbackSourceType
 from app.domain.feedback.repository import FeedbackRepository
@@ -39,6 +40,40 @@ class FakeAnalysisService:
             routing=RoutingResult(team="Payment Team", matched_keyword="payment"),
             retrieval_results=[SearchResult(text="Payment failed context", score=0.7)],
             rag_context="Payment context",
+        )
+
+
+class FakeStructuredAnalysisService:
+    def __init__(self, feedback_service: FeedbackService) -> None:
+        self.feedback_service = feedback_service
+
+    def run_feedback_analysis(self, feedback_id: int) -> AnalysisResponse:
+        output = StructuredAnalysisOutput(
+            sentiment_label=SentimentLabel.NEGATIVE,
+            sentiment_score=0.91,
+            category=AnalysisCategory.PAYMENT,
+            severity=Severity.P1,
+            routed_team="Payment Team",
+            summary="Payment failed.",
+            recommended_action="Investigate checkout payments.",
+            confidence_score=0.88,
+            reasoning_summary="Payment evidence was used.",
+            evidence_chunk_ids=[1],
+        )
+        self.feedback_service.attach_structured_analysis_result(
+            feedback_id,
+            analysis_run_id=123,
+            output=output,
+        )
+        return AnalysisResponse(
+            feedback_id=feedback_id,
+            analysis_run_id=123,
+            retrieval_trace_id=456,
+            validation_status=ValidationStatus.VALID,
+            output=output,
+            provider="fake",
+            model_name="fake",
+            prompt_version="test",
         )
 
 
@@ -147,6 +182,31 @@ def test_process_feedback_record_success_updates_analysis_fields(session_factory
         assert updated.sentiment_label == "NEGATIVE"
         assert updated.routed_team == "Payment Team"
         assert updated.error_code is None
+
+
+def test_process_feedback_record_uses_structured_analysis_when_available(session_factory: sessionmaker[Session]):
+    with session_factory() as session:
+        feedback_service = FeedbackService(FeedbackRepository(session))
+        record = feedback_service.create_ingested_feedback(
+            source_type=FeedbackSourceType.TEXT,
+            raw_text="Payment failed.",
+            extracted_text="Payment failed.",
+            processing_status=FeedbackProcessingStatus.QUEUED,
+        )
+        service = ProcessingService(
+            feedback_service=feedback_service,
+            analysis_service=FakeAnalysisService(),
+            llm_analysis_service=FakeStructuredAnalysisService(feedback_service),
+            queue=None,
+            settings=Settings(),
+        )
+
+        updated = service.process_feedback_record(record.id)
+
+        assert updated.processing_status == FeedbackProcessingStatus.COMPLETED
+        assert updated.latest_analysis_run_id == 123
+        assert updated.category == "PAYMENT"
+        assert updated.confidence_score == 0.88
 
 
 def test_process_feedback_record_without_text_persists_failed(session_factory: sessionmaker[Session]):

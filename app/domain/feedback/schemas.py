@@ -26,8 +26,14 @@ class FeedbackRecordRead(BaseModel):
     normalized_text: str | None
     sentiment_label: str | None
     sentiment_score: float | None
+    category: str | None
+    severity: str | None
     routed_team: str | None
     matched_keyword: str | None
+    summary: str | None
+    recommended_action: str | None
+    confidence_score: float | None
+    latest_analysis_run_id: int | None
     processing_task_id: str | None
     processing_status: FeedbackProcessingStatus
     error_code: str | None

@@ -83,3 +83,35 @@ BGE-M3 is the default Phase 4 embedding model because it is a strong open-source
 ## Retrieval Evidence
 
 Retrieval traces are stored in separate tables instead of `feedback_records`. Evidence can be many-to-one with feedback records, can grow over time, and includes scores/ranks/metadata that should not bloat the feedback row.
+
+## LLM Provider Abstraction
+
+Phase 5 uses an `LLMProvider` adapter instead of calling an external model directly. The default provider is local and rule-based so tests and live verification do not need paid APIs. External providers can be added later behind the same interface.
+
+## Structured Analysis Output
+
+LLM output is treated as untrusted input. It must parse as JSON and validate against `StructuredAnalysisOutput` before updating feedback records. Invalid output is stored as an invalid analysis run, preserving auditability without corrupting operational fields.
+
+## Analysis Runs And Latest Fields
+
+`llm_analysis_runs` stores detailed audit history. `feedback_records` stores latest fields such as category, severity, summary, recommended action, confidence, sentiment, and routed team for fast operational reads.
+
+## Internal Ticketing Before External Integrations
+
+Phase 6 creates internal workflow tickets before adding Jira, Slack, or Zendesk. This keeps local verification credential-free, lets tests use a mock notification provider, and creates a clean adapter boundary for future external systems.
+
+## Human Review For Risky AI Output
+
+High-severity analysis, low-confidence output, and missing routed teams create `workflow_review_items`. Human review is intentionally deterministic and explicit because enterprise AI systems need a safe override path instead of blindly acting on every model result.
+
+## Workflow Audit Logs
+
+Ticket creation, escalation, duplicate linking, and review decisions are written to `workflow_audit_logs`. Audit events are separate from tickets so the current ticket row stays compact while historical decisions remain available for debugging and compliance-style explanations.
+
+## Simple Duplicate Detection First
+
+Phase 6 uses deterministic duplicate detection based on category, assigned team, and ticket title. Vector clustering is deferred because a simple rule is predictable, testable, and enough to prove the workflow pattern without adding Phase 7-style analytics complexity.
+
+## Configurable Workflow Policy
+
+SLA hours, low-confidence threshold, notification provider, and automatic ticket creation are environment-driven. The default `WORKFLOW_AUTO_CREATE_TICKETS=false` keeps workflow creation manual unless the operator opts into automatic post-analysis ticketing.

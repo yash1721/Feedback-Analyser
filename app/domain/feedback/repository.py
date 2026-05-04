@@ -103,6 +103,37 @@ class FeedbackRepository:
         self.session.refresh(record)
         return record
 
+    def update_structured_analysis_result(
+        self,
+        record: FeedbackRecord,
+        *,
+        latest_analysis_run_id: int,
+        sentiment_label: str,
+        sentiment_score: float,
+        category: str,
+        severity: str,
+        routed_team: str,
+        summary: str,
+        recommended_action: str,
+        confidence_score: float,
+        processing_status: FeedbackProcessingStatus = FeedbackProcessingStatus.COMPLETED,
+    ) -> FeedbackRecord:
+        record.latest_analysis_run_id = latest_analysis_run_id
+        record.sentiment_label = sentiment_label
+        record.sentiment_score = sentiment_score
+        record.category = category
+        record.severity = severity
+        record.routed_team = routed_team
+        record.summary = summary
+        record.recommended_action = recommended_action
+        record.confidence_score = confidence_score
+        record.processing_status = processing_status
+        record.error_code = None
+        record.error_message = None
+        self.session.flush()
+        self.session.refresh(record)
+        return record
+
     def _filtered_statement(
         self,
         *,

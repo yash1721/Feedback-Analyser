@@ -38,8 +38,14 @@ class FeedbackRecord(Base):
     normalized_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     sentiment_label: Mapped[str | None] = mapped_column(String(64), index=True, nullable=True)
     sentiment_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    category: Mapped[str | None] = mapped_column(String(64), index=True, nullable=True)
+    severity: Mapped[str | None] = mapped_column(String(16), index=True, nullable=True)
     routed_team: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True)
     matched_keyword: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    recommended_action: Mapped[str | None] = mapped_column(Text, nullable=True)
+    confidence_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    latest_analysis_run_id: Mapped[int | None] = mapped_column(nullable=True)
     processing_task_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     processing_status: Mapped[FeedbackProcessingStatus] = mapped_column(
         Enum(FeedbackProcessingStatus, native_enum=False),

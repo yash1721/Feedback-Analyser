@@ -3,6 +3,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from app.api.v1 import (
+    analysis_routes,
     feedback_records_routes,
     feedback_routes,
     health_routes,
@@ -10,7 +11,10 @@ from app.api.v1 import (
     knowledge_routes,
     ocr_routes,
     processing_routes,
+    review_routes,
     retrieval_routes,
+    ticket_routes,
+    workflow_routes,
 )
 from app.config import get_settings
 from app.core.exceptions import FeedbackIQError
@@ -24,6 +28,7 @@ def create_app() -> FastAPI:
     settings = get_settings()
     application = FastAPI(title=settings.app_name, debug=settings.debug, version="0.1.0")
     application.add_middleware(RequestIdMiddleware)
+    application.include_router(analysis_routes.router, prefix=settings.api_v1_prefix)
     application.include_router(health_routes.router, prefix=settings.api_v1_prefix)
     application.include_router(ocr_routes.router, prefix=settings.api_v1_prefix)
     application.include_router(ingestion_routes.router, prefix=settings.api_v1_prefix)
@@ -32,6 +37,9 @@ def create_app() -> FastAPI:
     application.include_router(feedback_records_routes.router, prefix=settings.api_v1_prefix)
     application.include_router(processing_routes.router, prefix=settings.api_v1_prefix)
     application.include_router(retrieval_routes.router, prefix=settings.api_v1_prefix)
+    application.include_router(workflow_routes.router, prefix=settings.api_v1_prefix)
+    application.include_router(ticket_routes.router, prefix=settings.api_v1_prefix)
+    application.include_router(review_routes.router, prefix=settings.api_v1_prefix)
 
     @application.exception_handler(FeedbackIQError)
     async def feedbackiq_exception_handler(_: Request, exc: FeedbackIQError) -> JSONResponse:

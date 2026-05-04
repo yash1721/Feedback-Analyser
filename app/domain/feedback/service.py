@@ -4,6 +4,7 @@ from app.domain.feedback.repository import FeedbackRepository
 from app.domain.ingestion.text_normalizer import TextNormalizer
 from app.domain.routing.team_router import RoutingResult
 from app.domain.sentiment.sentiment_analyzer import SentimentResult
+from app.domain.analysis.schemas import StructuredAnalysisOutput
 
 
 class FeedbackService:
@@ -121,6 +122,29 @@ class FeedbackService:
             sentiment_score=sentiment.score,
             routed_team=routing.team,
             matched_keyword=routing.matched_keyword,
+        )
+        self.repository.session.commit()
+        return updated
+
+    def attach_structured_analysis_result(
+        self,
+        feedback_id: int,
+        *,
+        analysis_run_id: int,
+        output: StructuredAnalysisOutput,
+    ) -> FeedbackRecord:
+        record = self.get_feedback_record(feedback_id)
+        updated = self.repository.update_structured_analysis_result(
+            record,
+            latest_analysis_run_id=analysis_run_id,
+            sentiment_label=output.sentiment_label.value,
+            sentiment_score=output.sentiment_score,
+            category=output.category.value,
+            severity=output.severity.value,
+            routed_team=output.routed_team,
+            summary=output.summary,
+            recommended_action=output.recommended_action,
+            confidence_score=output.confidence_score,
         )
         self.repository.session.commit()
         return updated

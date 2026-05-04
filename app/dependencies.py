@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db.session import get_db_session, get_session_factory
+from app.domain.analysis.repository import AnalysisRepository
+from app.domain.analysis.service import AnalysisService
 from app.domain.feedback.feedback_analysis_service import FeedbackAnalysisService
 from app.domain.feedback.repository import FeedbackRepository
 from app.domain.feedback.service import FeedbackService
@@ -21,6 +23,12 @@ from app.domain.ingestion.text_normalizer import TextNormalizer
 from app.domain.knowledge.external_data import external_data
 from app.domain.knowledge.repository import KnowledgeRepository
 from app.domain.knowledge.service import KnowledgeService
+from app.domain.llm.fake_provider import FakeLLMProvider
+from app.domain.llm.provider import LLMProvider
+from app.domain.llm.rule_based_provider import RuleBasedAnalysisProvider
+from app.domain.notifications.log_provider import LogNotificationProvider
+from app.domain.notifications.mock_provider import MockNotificationProvider
+from app.domain.notifications.provider import NotificationProvider
 from app.domain.processing.queue import CeleryProcessingQueue, ProcessingQueue
 from app.domain.processing.service import ProcessingService
 from app.domain.retrieval.bge_m3_embeddings import BGEM3EmbeddingModel
@@ -35,6 +43,8 @@ from app.domain.routing.keyword_team_router import KeywordTeamRouter
 from app.domain.sentiment.hf_sentiment_analyzer import HuggingFaceSentimentAnalyzer
 from app.domain.storage.local_storage_provider import LocalFileStorageProvider
 from app.domain.storage.storage_provider import StorageProvider
+from app.domain.workflow.repository import WorkflowRepository
+from app.domain.workflow.service import WorkflowService
 
 
 @lru_cache
@@ -91,6 +101,24 @@ def get_knowledge_service(
     )
 
 
+def get_analysis_repository(session: Session = Depends(get_db_session)) -> AnalysisRepository:
+    return AnalysisRepository(session)
+
+
+def get_llm_provider() -> LLMProvider:
+    settings = get_settings()
+    if settings.llm_provider == "fake":
+        return FakeLLMProvider(settings.llm_model_name)
+    return RuleBasedAnalysisProvider(settings.llm_model_name)
+
+
+def get_llm_fallback_provider() -> LLMProvider | None:
+    settings = get_settings()
+    if settings.llm_fallback_provider == "rule_based":
+        return RuleBasedAnalysisProvider("rule-based-feedback-analyzer-v1")
+    return None
+
+
 def build_retrieval_service(knowledge_service: KnowledgeService | None = None) -> RetrievalService:
     settings = get_settings()
     return RetrievalService(
@@ -100,6 +128,33 @@ def build_retrieval_service(knowledge_service: KnowledgeService | None = None) -
         knowledge_base=external_data,
         settings=settings,
         knowledge_service=knowledge_service,
+    )
+
+
+def build_analysis_service(feedback_service: FeedbackService) -> AnalysisService:
+    session = feedback_service.repository.session
+    knowledge_service = KnowledgeService(
+        repository=KnowledgeRepository(session),
+        embedding_model=get_embedding_model(),
+        vector_store=get_vector_store(),
+        settings=get_settings(),
+    )
+
+
+def build_workflow_service(feedback_service: FeedbackService) -> WorkflowService:
+    return WorkflowService(
+        repository=WorkflowRepository(feedback_service.repository.session),
+        feedback_service=feedback_service,
+        notification_provider=get_notification_provider(),
+        settings=get_settings(),
+    )
+    return AnalysisService(
+        repository=AnalysisRepository(session),
+        feedback_service=feedback_service,
+        retrieval_service=build_retrieval_service(knowledge_service),
+        provider=get_llm_provider(),
+        fallback_provider=get_llm_fallback_provider(),
+        settings=get_settings(),
     )
 
 
@@ -147,6 +202,47 @@ def get_feedback_service(repository: FeedbackRepository = Depends(get_feedback_r
     return FeedbackService(repository, TextNormalizer())
 
 
+def get_workflow_repository(session: Session = Depends(get_db_session)) -> WorkflowRepository:
+    return WorkflowRepository(session)
+
+
+def get_notification_provider() -> NotificationProvider:
+    settings = get_settings()
+    if settings.notification_provider == "mock":
+        return MockNotificationProvider()
+    return LogNotificationProvider()
+
+
+def get_workflow_service(
+    repository: WorkflowRepository = Depends(get_workflow_repository),
+    feedback_service: FeedbackService = Depends(get_feedback_service),
+    notification_provider: NotificationProvider = Depends(get_notification_provider),
+) -> WorkflowService:
+    return WorkflowService(
+        repository=repository,
+        feedback_service=feedback_service,
+        notification_provider=notification_provider,
+        settings=get_settings(),
+    )
+
+
+def get_analysis_service(
+    repository: AnalysisRepository = Depends(get_analysis_repository),
+    feedback_service: FeedbackService = Depends(get_feedback_service),
+    retrieval_service: RetrievalService = Depends(get_retrieval_service),
+    provider: LLMProvider = Depends(get_llm_provider),
+    fallback_provider: LLMProvider | None = Depends(get_llm_fallback_provider),
+) -> AnalysisService:
+    return AnalysisService(
+        repository=repository,
+        feedback_service=feedback_service,
+        retrieval_service=retrieval_service,
+        provider=provider,
+        fallback_provider=fallback_provider,
+        settings=get_settings(),
+    )
+
+
 def get_processing_queue() -> ProcessingQueue:
     return CeleryProcessingQueue()
 
@@ -154,11 +250,15 @@ def get_processing_queue() -> ProcessingQueue:
 def get_processing_service(
     feedback_service: FeedbackService = Depends(get_feedback_service),
     analysis_service: FeedbackAnalysisService = Depends(get_feedback_analysis_service),
+    llm_analysis_service: AnalysisService = Depends(get_analysis_service),
+    workflow_service: WorkflowService = Depends(get_workflow_service),
     queue: ProcessingQueue = Depends(get_processing_queue),
 ) -> ProcessingService:
     return ProcessingService(
         feedback_service=feedback_service,
         analysis_service=analysis_service,
+        llm_analysis_service=llm_analysis_service,
+        workflow_service=workflow_service,
         queue=queue,
         settings=get_settings(),
     )

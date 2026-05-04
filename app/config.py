@@ -43,6 +43,17 @@ class Settings(BaseSettings):
     vector_distance: Literal["cosine", "dot", "euclidean"] = "cosine"
     knowledge_chunk_size_chars: int = Field(default=1200, ge=100)
     knowledge_chunk_overlap_chars: int = Field(default=200, ge=0)
+    llm_provider: Literal["fake", "rule_based"] = "rule_based"
+    llm_fallback_provider: Literal["none", "rule_based"] = "rule_based"
+    llm_model_name: str = "rule-based-feedback-analyzer-v1"
+    llm_prompt_version: str = "feedback-analysis-v1"
+    llm_confidence_threshold: float = Field(default=0.5, ge=0.0, le=1.0)
+    workflow_low_confidence_threshold: float = Field(default=0.65, ge=0.0, le=1.0)
+    workflow_default_sla_hours: int = Field(default=48, ge=1)
+    workflow_p0_sla_hours: int = Field(default=4, ge=1)
+    workflow_p1_sla_hours: int = Field(default=12, ge=1)
+    workflow_auto_create_tickets: bool = False
+    notification_provider: Literal["log", "mock"] = "log"
 
 
 @lru_cache

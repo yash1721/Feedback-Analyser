@@ -84,6 +84,17 @@ QDRANT_URL=http://localhost:6333
 QDRANT_COLLECTION_NAME=feedbackiq_knowledge
 VECTOR_SIZE=1024
 VECTOR_DISTANCE=cosine
+LLM_PROVIDER=rule_based
+LLM_FALLBACK_PROVIDER=rule_based
+LLM_MODEL_NAME=rule-based-feedback-analyzer-v1
+LLM_PROMPT_VERSION=feedback-analysis-v1
+LLM_CONFIDENCE_THRESHOLD=0.5
+WORKFLOW_LOW_CONFIDENCE_THRESHOLD=0.65
+WORKFLOW_DEFAULT_SLA_HOURS=48
+WORKFLOW_P0_SLA_HOURS=4
+WORKFLOW_P1_SLA_HOURS=12
+WORKFLOW_AUTO_CREATE_TICKETS=false
+NOTIFICATION_PROVIDER=log
 ```
 
 Open:
@@ -289,6 +300,26 @@ Use this gate after retrieval changes. It verifies PostgreSQL, Qdrant, migration
 ```
 
 BGE-M3 loads lazily on first indexing/search use. The first run may download the model.
+
+## Phase 5 Live Runtime Verification
+
+Use this gate after LLM analysis changes. It verifies retrieval evidence, structured analysis, latest feedback fields, async worker integration, and tests:
+
+```powershell
+.\scripts\verify_phase5_live.ps1
+```
+
+The default provider is `rule_based`, so no paid API key is required.
+
+## Phase 6 Live Runtime Verification
+
+Use this gate after workflow automation changes. It verifies analysis, ticket creation, escalation, human review, audit logs, idempotency, and tests:
+
+```powershell
+.\scripts\verify_phase6_live.ps1
+```
+
+The default notification provider is `log`, so no Slack, Jira, or Zendesk credentials are required.
 
 ## Common Setup Failures
 

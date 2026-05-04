@@ -71,3 +71,31 @@ Phase 4 separates relational knowledge from vector indexing:
 6. `retrieval_traces` and `retrieval_trace_items` persist evidence when requested.
 
 FAISS remains available through the same `VectorStore` abstraction, but Qdrant is the production retrieval provider.
+
+## Phase 5 Analysis Flow
+
+Phase 5 adds an analysis pipeline:
+
+1. `AnalysisService` loads a feedback record.
+2. `RetrievalService` retrieves evidence and persists a retrieval trace.
+3. `prompts.py` builds a versioned grounded prompt.
+4. `LLMProvider` returns raw structured output.
+5. `output_parser.py` validates the output with Pydantic.
+6. `llm_analysis_runs` stores the audit record.
+7. `feedback_records` stores the latest operational result.
+
+The API and Celery worker both use the same service layer, so synchronous and asynchronous analysis follow the same rules.
+
+## Phase 6 Workflow Automation Flow
+
+Phase 6 turns validated analysis into operational work:
+
+1. `WorkflowService` loads the feedback record and latest `llm_analysis_runs` row.
+2. Duplicate detection checks whether the same category/team/title already has an open ticket.
+3. `workflow_tickets` stores the actionable internal ticket.
+4. Deterministic workflow rules decide whether the ticket needs escalation or human review.
+5. `workflow_review_items` stores low-confidence or high-risk human-review work.
+6. `workflow_audit_logs` records ticket, review, duplicate, escalation, and manual decision events.
+7. `NotificationProvider` emits mock/log notifications through an adapter, with no real Slack/Jira/Zendesk calls by default.
+
+The ticket is separate from the feedback record because feedback is source data, analysis is AI interpretation, and workflow is operational execution. Keeping those concerns apart makes retries, audit, and manual overrides easier to reason about.

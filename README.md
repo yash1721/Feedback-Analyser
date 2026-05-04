@@ -18,6 +18,8 @@ FeedbackIQ is a FastAPI backend for OCR-based feedback extraction, vector retrie
 - Persists async processing status, task IDs, analysis results, and failures.
 - Indexes knowledge documents into Qdrant for metadata-aware retrieval.
 - Stores retrieval traces as RAG evidence.
+- Produces RAG-grounded structured feedback analysis with a local LLM provider abstraction.
+- Creates internal workflow tickets, escalations, human reviews, audit logs, and mock/log notifications from analysis results.
 
 ## Architecture
 
@@ -36,6 +38,10 @@ See `docs/architecture.md` and `docs/design-decisions.md` for the design notes.
 Phase 3 adds queue-based processing. The API enqueues work, a Celery worker consumes it, and PostgreSQL remains the source of truth for `QUEUED`, `PROCESSING`, `COMPLETED`, and `FAILED` states.
 
 Phase 4 adds Qdrant-backed retrieval. PostgreSQL stores documents, chunks, and retrieval evidence; Qdrant stores vector points and metadata payloads for fast semantic search.
+
+Phase 5 adds structured analysis. Feedback records are analyzed with retrieved evidence, validated JSON output, analysis run history, and latest operational fields on `feedback_records`.
+
+Phase 6 adds workflow automation. The latest analysis can create an internal ticket, apply deterministic escalation/review rules, detect simple duplicates, persist audit logs, and notify through a local adapter.
 
 ## Windows Setup
 
@@ -99,6 +105,14 @@ celery -A app.workers.celery_app worker --loglevel=info --pool=solo
 
 `--pool=solo` is recommended for local Windows development.
 
+Workflow automation is manual by default. To create a ticket after analysis:
+
+```powershell
+Invoke-RestMethod -Uri http://localhost:8000/api/v1/workflows/feedback-records/1/create-ticket -Method Post
+```
+
+Set `WORKFLOW_AUTO_CREATE_TICKETS=true` only if you want async processing to create tickets automatically after successful analysis.
+
 API docs are available at:
 
 ```text
@@ -114,6 +128,12 @@ pytest
 The project includes `pytest.ini`, so no `PYTHONPATH` workaround is required.
 
 Tests use SQLite and dependency overrides, so they do not require Postgres, Tesseract, or Hugging Face model downloads.
+
+Live Phase 6 verification:
+
+```powershell
+.\scripts\verify_phase6_live.ps1
+```
 
 ## API Examples
 
@@ -415,6 +435,14 @@ Phase 4 verifies PostgreSQL, Qdrant, FastAPI, indexing, metadata-filtered retrie
 ```
 
 First use of BGE-M3 may download a large model.
+
+## Phase 5 Live Verification
+
+Phase 5 verifies RAG-grounded analysis and async integration with the local `rule_based` provider:
+
+```powershell
+.\scripts\verify_phase5_live.ps1
+```
 
 ## Troubleshooting
 

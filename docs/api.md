@@ -571,3 +571,84 @@ Content-Type: application/json
 ```
 
 The response preserves `query`, `results`, and `rag_context`, and now also includes `trace_id`, ranks, point IDs, chunk IDs, and metadata when available.
+
+## Analysis
+
+Run RAG-grounded structured analysis for a feedback record:
+
+```http
+POST /analysis/feedback-records/{feedback_id}/run
+```
+
+Get latest analysis fields for a feedback record:
+
+```http
+GET /analysis/feedback-records/{feedback_id}/latest
+```
+
+Get an analysis run audit record:
+
+```http
+GET /analysis/runs/{run_id}
+```
+
+Structured output includes sentiment, category, severity, routed team, summary, recommended action, confidence, concise reasoning summary, and evidence chunk IDs.
+
+## Workflow Automation
+
+Create an internal workflow ticket from the latest analysis:
+
+```http
+POST /workflows/feedback-records/{feedback_id}/create-ticket
+```
+
+The endpoint is idempotent for the same feedback record. If a ticket already exists, the existing ticket is returned without creating another one.
+
+List or inspect tickets:
+
+```http
+GET /tickets
+GET /tickets/{ticket_id}
+```
+
+Update ticket status, assignment, or escalation:
+
+```http
+PATCH /tickets/{ticket_id}/status
+Content-Type: application/json
+
+{"status": "RESOLVED", "reason": "Payment fix deployed."}
+```
+
+```http
+POST /tickets/{ticket_id}/assign
+Content-Type: application/json
+
+{"assigned_team": "Payment Team", "assigned_owner": "engineer@example.com"}
+```
+
+```http
+POST /tickets/{ticket_id}/escalate
+Content-Type: application/json
+
+{"reason": "P1 payment failure."}
+```
+
+List and decide human-review items:
+
+```http
+GET /reviews?status=PENDING
+GET /reviews/{review_id}
+POST /reviews/{review_id}/decision
+Content-Type: application/json
+
+{"action": "OVERRIDE_TEAM", "final_team": "Backend Team", "reviewer_note": "Checkout API owner."}
+```
+
+Supported review actions are `APPROVE`, `REJECT`, `OVERRIDE_TEAM`, `OVERRIDE_SEVERITY`, `MARK_DUPLICATE`, and `RESOLVE`.
+
+Inspect workflow audit events:
+
+```http
+GET /workflows/audit-logs?entity_type=ticket&entity_id=1
+```

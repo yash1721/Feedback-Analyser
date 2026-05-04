@@ -1,11 +1,17 @@
 from dataclasses import dataclass
+import logging
 
 from app.config import Settings
 from app.core.exceptions import BadRequestError, FeedbackIQError, NotFoundError, QueueUnavailableError
+from app.domain.analysis.schemas import ValidationStatus
+from app.domain.analysis.service import AnalysisService
 from app.domain.feedback.feedback_analysis_service import FeedbackAnalysisService
 from app.domain.feedback.models import FeedbackProcessingStatus, FeedbackRecord
 from app.domain.feedback.service import FeedbackService
 from app.domain.processing.queue import ProcessingQueue
+from app.domain.workflow.service import WorkflowService
+
+logger = logging.getLogger(__name__)
 
 
 class PermanentProcessingError(Exception):
@@ -37,9 +43,13 @@ class ProcessingService:
         analysis_service: FeedbackAnalysisService,
         queue: ProcessingQueue | None,
         settings: Settings,
+        llm_analysis_service: AnalysisService | None = None,
+        workflow_service: WorkflowService | None = None,
     ) -> None:
         self.feedback_service = feedback_service
         self.analysis_service = analysis_service
+        self.llm_analysis_service = llm_analysis_service
+        self.workflow_service = workflow_service
         self.queue = queue
         self.settings = settings
 
@@ -121,6 +131,30 @@ class ProcessingService:
             raise PermanentProcessingError(failed.error_code or "no_processable_text", failed.error_message or "No processable text.")
 
         self.feedback_service.update_status(feedback_id, processing_status=FeedbackProcessingStatus.PROCESSING)
+        if self.llm_analysis_service is not None:
+            try:
+                analysis_response = self.llm_analysis_service.run_feedback_analysis(feedback_id)
+            except FeedbackIQError as exc:
+                raise TransientProcessingError(exc.code, exc.message) from exc
+            except Exception as exc:
+                raise TransientProcessingError("analysis_error", "Structured feedback analysis failed.") from exc
+            if analysis_response.validation_status != ValidationStatus.VALID:
+                self.feedback_service.mark_failed(
+                    feedback_id,
+                    error_code=analysis_response.error_code or "analysis_validation_error",
+                    error_message=analysis_response.error_message or "Structured analysis output was invalid.",
+                )
+                raise PermanentProcessingError(
+                    analysis_response.error_code or "analysis_validation_error",
+                    analysis_response.error_message or "Structured analysis output was invalid.",
+                )
+            if self.settings.workflow_auto_create_tickets and self.workflow_service is not None:
+                try:
+                    self.workflow_service.create_ticket_for_feedback(feedback_id)
+                except Exception:
+                    logger.exception("Workflow ticket creation failed after processing", extra={"feedback_id": feedback_id})
+            return self.feedback_service.get_feedback_record(feedback_id)
+
         try:
             result = self.analysis_service.analyze(text, self.settings.retrieval_top_k)
         except FeedbackIQError as exc:
