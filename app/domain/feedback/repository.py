@@ -76,6 +76,12 @@ class FeedbackRepository:
         self.session.refresh(record)
         return record
 
+    def update_processing_task_id(self, record: FeedbackRecord, *, processing_task_id: str | None) -> FeedbackRecord:
+        record.processing_task_id = processing_task_id
+        self.session.flush()
+        self.session.refresh(record)
+        return record
+
     def update_analysis_result(
         self,
         record: FeedbackRecord,

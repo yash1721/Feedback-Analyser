@@ -350,3 +350,180 @@ Validation error:
   }
 }
 ```
+
+## Ingestion
+
+Text ingestion creates a feedback record without running sentiment, routing, retrieval, or RAG:
+
+```http
+POST /ingestion/text
+Content-Type: application/json
+
+{"text": "Checkout failed during payment."}
+```
+
+```json
+{
+  "success": true,
+  "message": "success",
+  "data": {
+    "feedback_id": 1,
+    "source_type": "TEXT",
+    "processing_status": "EXTRACTED",
+    "original_input_reference": null,
+    "raw_text": "Checkout failed during payment.",
+    "extracted_text": "Checkout failed during payment.",
+    "normalized_text": "Checkout failed during payment.",
+    "error_code": null,
+    "error_message": null
+  },
+  "error": null
+}
+```
+
+Image upload:
+
+```http
+POST /ingestion/image
+Content-Type: multipart/form-data
+```
+
+Form field: `file`. The service accepts `image/*`, enforces `MAX_IMAGE_BYTES`, stores the original file, runs OCR, and persists an `IMAGE` feedback record.
+
+Image URL ingestion:
+
+```http
+POST /ingestion/image-url
+Content-Type: application/json
+
+{"url": "https://example.com/image.png"}
+```
+
+Only `http` and `https` URLs are accepted. Localhost, private, loopback, link-local, reserved, and oversized image responses are rejected.
+
+PDF ingestion:
+
+```http
+POST /ingestion/pdf
+Content-Type: multipart/form-data
+```
+
+Form field: `file`. The service accepts `application/pdf`, enforces `MAX_PDF_BYTES`, stores the original file, extracts selectable text with `pypdf`, and persists a `PDF` feedback record.
+
+CSV ingestion:
+
+```http
+POST /ingestion/csv
+Content-Type: multipart/form-data
+```
+
+Expected CSV columns: `text` or `feedback_text`.
+
+```json
+{
+  "success": true,
+  "message": "success",
+  "data": {
+    "source_type": "CSV",
+    "original_input_reference": "stored-file-key.csv",
+    "created_count": 2,
+    "failed_count": 1,
+    "feedback_ids": [10, 11],
+    "row_errors": [
+      {
+        "row_number": 3,
+        "error_code": "invalid_row",
+        "error_message": "Feedback text is required."
+      }
+    ]
+  },
+  "error": null
+}
+```
+
+Extraction failure example:
+
+```json
+{
+  "success": true,
+  "message": "success",
+  "data": {
+    "feedback_id": 5,
+    "source_type": "IMAGE",
+    "processing_status": "FAILED",
+    "original_input_reference": "stored-file-key.png",
+    "raw_text": null,
+    "extracted_text": null,
+    "normalized_text": null,
+    "error_code": "ocr_error",
+    "error_message": "OCR processing timed out or failed."
+  },
+  "error": null
+}
+```
+
+Phase 2 verification checklist:
+
+- `POST /ingestion/text` creates an `EXTRACTED` `TEXT` record.
+- `POST /ingestion/image` validates file type and size, stores the image, and persists OCR output or `FAILED`.
+- `POST /ingestion/image-url` blocks unsafe URLs and persists downloaded image OCR output.
+- `POST /ingestion/pdf` validates PDF upload and persists extracted text or `FAILED`.
+- `POST /ingestion/csv` creates records for valid rows and returns row-level errors.
+- `pytest` passes without Postgres, Tesseract, external network, paid APIs, or model downloads.
+
+## Async Processing
+
+Enqueue a feedback record:
+
+```http
+POST /processing/feedback-records/{feedback_id}/enqueue
+```
+
+The record must be `PENDING` or `EXTRACTED`. Records already in `QUEUED`, `PROCESSING`, or `COMPLETED` return idempotently without creating another active task. `FAILED` records require an explicit reset in a future phase.
+
+```json
+{
+  "success": true,
+  "message": "success",
+  "data": {
+    "feedback_id": 1,
+    "processing_status": "QUEUED",
+    "task_id": "celery-task-id",
+    "enqueued": true
+  },
+  "error": null
+}
+```
+
+Poll processing status:
+
+```http
+GET /processing/feedback-records/{feedback_id}/status
+```
+
+```json
+{
+  "success": true,
+  "message": "success",
+  "data": {
+    "feedback_id": 1,
+    "processing_status": "COMPLETED",
+    "task_id": "celery-task-id",
+    "error_code": null,
+    "error_message": null,
+    "sentiment_label": "NEGATIVE",
+    "sentiment_score": 0.99,
+    "routed_team": "Payment Team",
+    "matched_keyword": "payment"
+  },
+  "error": null
+}
+```
+
+Status lifecycle:
+
+```text
+PENDING -> QUEUED -> PROCESSING -> COMPLETED
+EXTRACTED -> QUEUED -> PROCESSING -> COMPLETED
+QUEUED/PROCESSING -> FAILED
+```

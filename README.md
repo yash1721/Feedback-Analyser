@@ -13,6 +13,9 @@ FeedbackIQ is a FastAPI backend for OCR-based feedback extraction, vector retrie
 - Routes feedback to a team using keyword routing.
 - Persists feedback metadata with SQLAlchemy and PostgreSQL.
 - Exposes feedback-record APIs with pagination and filtering.
+- Ingests feedback from text, image uploads, safe image URLs, PDFs, and CSV files.
+- Enqueues feedback records for background processing with Celery and Redis.
+- Persists async processing status, task IDs, analysis results, and failures.
 
 ## Architecture
 
@@ -27,6 +30,8 @@ Phase 1 uses a Controller-Service-Repository shape:
 - Storage providers hide local file storage behind an interface that can later be replaced by S3.
 
 See `docs/architecture.md` and `docs/design-decisions.md` for the design notes.
+
+Phase 3 adds queue-based processing. The API enqueues work, a Celery worker consumes it, and PostgreSQL remains the source of truth for `QUEUED`, `PROCESSING`, `COMPLETED`, and `FAILED` states.
 
 ## Windows Setup
 
@@ -51,7 +56,7 @@ copy .env.example .env
 Run PostgreSQL locally with Docker Compose:
 
 ```powershell
-docker compose up feedbackiq-db -d
+docker compose up feedbackiq-db feedbackiq-redis -d
 ```
 
 Apply database migrations:
@@ -81,6 +86,14 @@ First use requires internet access and can be slow. Offline machines need the mo
 ```powershell
 uvicorn app.main:app --reload
 ```
+
+Start the background worker in a second terminal:
+
+```powershell
+celery -A app.workers.celery_app worker --loglevel=info --pool=solo
+```
+
+`--pool=solo` is recommended for local Windows development.
 
 API docs are available at:
 
@@ -220,6 +233,39 @@ Invoke-RestMethod -Uri http://localhost:8000/api/v1/feedback/analyze -Method Pos
 
 When `persist` is omitted or `false`, `/feedback/analyze` keeps the original stateless behavior. When `persist` is `true`, the response also includes `record_id`.
 
+Ingest text without running analysis:
+
+```powershell
+Invoke-RestMethod -Uri http://localhost:8000/api/v1/ingestion/text -Method Post -ContentType "application/json" -Body '{"text":"Checkout payment failed during transaction."}'
+```
+
+Ingest an image, PDF, or CSV:
+
+```powershell
+curl.exe -X POST http://localhost:8000/api/v1/ingestion/image -F "file=@Images/letter-1.png;type=image/png"
+curl.exe -X POST http://localhost:8000/api/v1/ingestion/pdf -F "file=@data.pdf;type=application/pdf"
+curl.exe -X POST http://localhost:8000/api/v1/ingestion/csv -F "file=@feedback.csv;type=text/csv"
+```
+
+Ingest a public image URL:
+
+```powershell
+Invoke-RestMethod -Uri http://localhost:8000/api/v1/ingestion/image-url -Method Post -ContentType "application/json" -Body '{"url":"https://example.com/image.png"}'
+```
+
+Successful ingestion returns `feedback_id`, `source_type`, `processing_status`, extracted text, normalized text, and the stored file key when a file was stored. File-based extraction failures are persisted as `FAILED` feedback records with `error_code` and `error_message`.
+
+Enqueue an ingested record for async processing:
+
+```powershell
+$created = Invoke-RestMethod -Uri http://localhost:8000/api/v1/ingestion/text -Method Post -ContentType "application/json" -Body '{"text":"Checkout payment failed during transaction."}'
+$feedbackId = $created.data.feedback_id
+Invoke-RestMethod -Uri "http://localhost:8000/api/v1/processing/feedback-records/$feedbackId/enqueue" -Method Post
+Invoke-RestMethod -Uri "http://localhost:8000/api/v1/processing/feedback-records/$feedbackId/status" -Method Get
+```
+
+Repeated enqueue calls are idempotent for records that are already `QUEUED`, `PROCESSING`, or `COMPLETED`.
+
 Common error response:
 
 ```json
@@ -272,6 +318,8 @@ In a fresh database, run migrations inside the API container:
 ```powershell
 docker compose exec feedbackiq-api alembic upgrade head
 ```
+
+Docker Compose includes `feedbackiq-api`, `feedbackiq-worker`, `feedbackiq-db`, and `feedbackiq-redis`.
 
 ## Phase 1.1.5 Live Runtime Verification
 
@@ -343,6 +391,16 @@ Optional one-command helper:
 ```powershell
 .\scripts\verify_phase1_live.ps1
 ```
+
+## Phase 3 Live Verification
+
+Phase 3 verifies PostgreSQL, Redis, FastAPI, and Celery together:
+
+```powershell
+.\scripts\verify_phase3_live.ps1
+```
+
+The script starts PostgreSQL and Redis, applies migrations, starts the API and worker, ingests text, enqueues processing, polls status, and runs the Docker-free test suite.
 
 ## Troubleshooting
 

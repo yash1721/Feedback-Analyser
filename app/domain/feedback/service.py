@@ -1,13 +1,15 @@
 from app.core.exceptions import BadRequestError, NotFoundError
 from app.domain.feedback.models import FeedbackProcessingStatus, FeedbackRecord, FeedbackSourceType
 from app.domain.feedback.repository import FeedbackRepository
+from app.domain.ingestion.text_normalizer import TextNormalizer
 from app.domain.routing.team_router import RoutingResult
 from app.domain.sentiment.sentiment_analyzer import SentimentResult
 
 
 class FeedbackService:
-    def __init__(self, repository: FeedbackRepository) -> None:
+    def __init__(self, repository: FeedbackRepository, normalizer: TextNormalizer | None = None) -> None:
         self.repository = repository
+        self.normalizer = normalizer or TextNormalizer()
 
     def create_text_feedback(
         self,
@@ -28,6 +30,32 @@ class FeedbackService:
             processing_status=FeedbackProcessingStatus.PENDING,
         )
         self.repository.session.commit()
+        return record
+
+    def create_ingested_feedback(
+        self,
+        *,
+        source_type: FeedbackSourceType,
+        original_input_reference: str | None = None,
+        raw_text: str | None = None,
+        extracted_text: str | None = None,
+        processing_status: FeedbackProcessingStatus = FeedbackProcessingStatus.EXTRACTED,
+        error_code: str | None = None,
+        error_message: str | None = None,
+    ) -> FeedbackRecord:
+        normalized_text = self.normalize_text(extracted_text) if extracted_text is not None else None
+        record = self.repository.create(
+            source_type=source_type,
+            original_input_reference=original_input_reference,
+            raw_text=raw_text,
+            extracted_text=extracted_text,
+            normalized_text=normalized_text,
+            processing_status=processing_status,
+        )
+        record.error_code = error_code
+        record.error_message = error_message
+        self.repository.session.commit()
+        self.repository.session.refresh(record)
         return record
 
     def get_feedback_record(self, feedback_id: int) -> FeedbackRecord:
@@ -73,6 +101,12 @@ class FeedbackService:
         self.repository.session.commit()
         return updated
 
+    def attach_processing_task_id(self, feedback_id: int, *, processing_task_id: str | None) -> FeedbackRecord:
+        record = self.get_feedback_record(feedback_id)
+        updated = self.repository.update_processing_task_id(record, processing_task_id=processing_task_id)
+        self.repository.session.commit()
+        return updated
+
     def attach_analysis_result(
         self,
         feedback_id: int,
@@ -108,6 +142,5 @@ class FeedbackService:
         self.repository.session.commit()
         return record
 
-    @staticmethod
-    def normalize_text(text: str) -> str:
-        return " ".join(text.split())
+    def normalize_text(self, text: str) -> str:
+        return self.normalizer.normalize(text)

@@ -17,6 +17,8 @@ class Settings(BaseSettings):
 
     request_timeout_seconds: float = 10.0
     max_image_bytes: int = Field(default=5 * 1024 * 1024, ge=1)
+    max_pdf_bytes: int = Field(default=10 * 1024 * 1024, ge=1)
+    max_csv_bytes: int = Field(default=2 * 1024 * 1024, ge=1)
     ocr_languages: str = "eng+hin"
     tesseract_timeout_seconds: int = 5
 
@@ -27,6 +29,12 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://feedbackiq:feedbackiq@localhost:5432/feedbackiq"
     test_database_url: str = "sqlite+pysqlite:///:memory:"
     local_storage_dir: str = ".local_storage"
+    redis_url: str = "redis://localhost:6379/0"
+    celery_broker_url: str = "redis://localhost:6379/0"
+    celery_result_backend: str = "redis://localhost:6379/1"
+    processing_max_retries: int = Field(default=3, ge=0)
+    processing_retry_backoff_seconds: int = Field(default=5, ge=1)
+    celery_task_always_eager: bool = False
 
 
 @lru_cache

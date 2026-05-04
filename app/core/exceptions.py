@@ -48,3 +48,8 @@ class OcrError(FeedbackIQError):
 class ModelUnavailableError(FeedbackIQError):
     status_code = 503
     code = "model_unavailable"
+
+
+class QueueUnavailableError(FeedbackIQError):
+    status_code = 503
+    code = "queue_unavailable"

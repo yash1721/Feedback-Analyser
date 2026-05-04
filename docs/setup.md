@@ -32,10 +32,10 @@ copy .env.example .env
 
 Phase 1 uses PostgreSQL for local app runtime and SQLite for automated tests.
 
-Start Postgres with Docker Compose:
+Start Postgres and Redis with Docker Compose:
 
 ```powershell
-docker compose up feedbackiq-db -d
+docker compose up feedbackiq-db feedbackiq-redis -d
 ```
 
 The default local database URL is:
@@ -60,6 +60,23 @@ Start the API:
 
 ```powershell
 uvicorn app.main:app --reload
+```
+
+Start the Celery worker in another terminal:
+
+```powershell
+celery -A app.workers.celery_app worker --loglevel=info --pool=solo
+```
+
+Redis and Celery settings are environment-driven:
+
+```env
+REDIS_URL=redis://localhost:6379/0
+CELERY_BROKER_URL=redis://localhost:6379/0
+CELERY_RESULT_BACKEND=redis://localhost:6379/1
+PROCESSING_MAX_RETRIES=3
+PROCESSING_RETRY_BACKOFF_SECONDS=5
+CELERY_TASK_ALWAYS_EAGER=false
 ```
 
 Open:
@@ -88,6 +105,28 @@ python -c "import pytesseract; print(pytesseract.get_tesseract_version())"
 
 If `tesseract --version` fails, fix the native install or `PATH`. If the Python command fails, reinstall dependencies in the active virtual environment.
 
+## PDF And CSV Ingestion
+
+PDF text extraction uses the Python `pypdf` package from `requirements.txt`. It works best for PDFs that already contain selectable text. Scanned PDFs need OCR-based handling, which is intentionally not part of Phase 2.
+
+File size limits are environment-driven:
+
+```env
+MAX_IMAGE_BYTES=5242880
+MAX_PDF_BYTES=10485760
+MAX_CSV_BYTES=2097152
+```
+
+CSV ingestion expects UTF-8 CSV with a `text` or `feedback_text` column:
+
+```csv
+text
+Checkout failed during payment.
+Shipping was delayed.
+```
+
+Blank rows are reported as row-level errors while valid rows are still persisted.
+
 ## Hugging Face Models
 
 Retrieval and feedback analysis load models lazily on first use:
@@ -113,6 +152,8 @@ pytest
 The repository includes `pytest.ini`, which restricts discovery to `tests/` and adds the repo root to the import path.
 
 Tests build a temporary SQLite schema and override FastAPI dependencies where needed. They should not require Postgres, Tesseract, or Hugging Face model downloads.
+
+Async processing tests use fake queues and fake analysis services, so normal `pytest` does not require Redis or a running Celery worker.
 
 ## Docker
 
@@ -216,6 +257,20 @@ Optional helper script:
 
 ```powershell
 .\scripts\verify_phase1_live.ps1
+```
+
+## Phase 3 Live Runtime Verification
+
+Use this gate after async processing changes. It verifies PostgreSQL, Redis, FastAPI, Celery, migrations, ingestion, enqueue, polling, and tests:
+
+```powershell
+.\scripts\verify_phase3_live.ps1
+```
+
+On Windows, the worker command uses Celery's solo pool:
+
+```powershell
+celery -A app.workers.celery_app worker --loglevel=info --pool=solo
 ```
 
 ## Common Setup Failures

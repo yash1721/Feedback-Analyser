@@ -17,7 +17,9 @@ class FeedbackSourceType(StrEnum):
 
 class FeedbackProcessingStatus(StrEnum):
     PENDING = "PENDING"
+    QUEUED = "QUEUED"
     PROCESSING = "PROCESSING"
+    EXTRACTED = "EXTRACTED"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
 
@@ -38,6 +40,7 @@ class FeedbackRecord(Base):
     sentiment_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     routed_team: Mapped[str | None] = mapped_column(String(128), index=True, nullable=True)
     matched_keyword: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    processing_task_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     processing_status: Mapped[FeedbackProcessingStatus] = mapped_column(
         Enum(FeedbackProcessingStatus, native_enum=False),
         default=FeedbackProcessingStatus.PENDING,

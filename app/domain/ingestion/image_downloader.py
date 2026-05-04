@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 import cv2
 import numpy as np
 import requests
@@ -6,12 +8,22 @@ from app.core.exceptions import DownloadError, PayloadTooLargeError, Unsupported
 from app.core.url_security import validate_public_http_url
 
 
+@dataclass(frozen=True)
+class DownloadedImage:
+    content: bytes
+    content_type: str
+    image: np.ndarray
+
+
 class ImageDownloader:
     def __init__(self, timeout_seconds: float, max_image_bytes: int) -> None:
         self.timeout_seconds = timeout_seconds
         self.max_image_bytes = max_image_bytes
 
     def download(self, url: str) -> np.ndarray:
+        return self.download_image(url).image
+
+    def download_image(self, url: str) -> DownloadedImage:
         safe_url = validate_public_http_url(url)
         try:
             response = requests.get(safe_url, timeout=self.timeout_seconds, stream=True)
@@ -39,9 +51,9 @@ class ImageDownloader:
                 raise PayloadTooLargeError("Image exceeds the configured maximum size.")
             chunks.append(chunk)
 
-        image_array = np.frombuffer(b"".join(chunks), dtype=np.uint8)
+        content = b"".join(chunks)
+        image_array = np.frombuffer(content, dtype=np.uint8)
         image = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
         if image is None:
             raise UnsupportedMediaTypeError("Downloaded content could not be decoded as an image.")
-        return image
-
+        return DownloadedImage(content=content, content_type=content_type, image=image)
