@@ -6,6 +6,12 @@ Base URL:
 http://localhost:8000/api/v1
 ```
 
+Metrics are exposed outside the API prefix:
+
+```text
+http://localhost:8000/metrics
+```
+
 All application responses use this envelope:
 
 ```json
@@ -39,6 +45,52 @@ GET /health
 
 ```powershell
 curl.exe http://localhost:8000/api/v1/health
+```
+
+Additional observability endpoints:
+
+```text
+GET /health/live
+GET /health/ready
+GET /metrics
+```
+
+`/health/live` confirms the process is alive. `/health/ready` checks PostgreSQL, Redis, and Qdrant readiness. `/metrics` returns Prometheus-compatible metrics.
+
+## Security
+
+When `AUTH_ENABLED=true`, protected endpoints require:
+
+```http
+X-API-Key: local-admin-key
+```
+
+Security audit logs:
+
+```http
+GET /security/audit-logs
+```
+
+Authentication failure:
+
+```json
+{
+  "success": false,
+  "message": "API key is required.",
+  "data": null,
+  "error": {"code": "authentication_failed", "details": null}
+}
+```
+
+Rate-limit failure:
+
+```json
+{
+  "success": false,
+  "message": "Rate limit exceeded.",
+  "data": null,
+  "error": {"code": "rate_limited", "details": {"retry_after_seconds": 60}}
+}
 ```
 
 ```json

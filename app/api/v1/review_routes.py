@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, Query
 
+from app.core.auth import require_permission
 from app.core.responses import success_response
 from app.dependencies import get_workflow_service
 from app.domain.workflow.models import ReviewStatus
@@ -12,7 +13,7 @@ from app.domain.workflow.schemas import (
 )
 from app.domain.workflow.service import WorkflowService
 
-router = APIRouter(prefix="/reviews", tags=["reviews"])
+router = APIRouter(prefix="/reviews", tags=["reviews"], dependencies=[Depends(require_permission("review:read"))])
 
 
 @router.get("")
@@ -42,6 +43,7 @@ def get_review(review_id: int, service: WorkflowService = Depends(get_workflow_s
 def decide_review(
     review_id: int,
     request: ReviewDecisionRequest,
+    _=Depends(require_permission("review:write")),
     service: WorkflowService = Depends(get_workflow_service),
 ) -> dict:
     result = service.decide_review(

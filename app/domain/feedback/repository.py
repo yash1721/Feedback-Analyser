@@ -16,6 +16,12 @@ class FeedbackRepository:
         raw_text: str | None = None,
         extracted_text: str | None = None,
         normalized_text: str | None = None,
+        sanitized_text: str | None = None,
+        pii_detected: bool = False,
+        pii_types_json: list | None = None,
+        prompt_injection_detected: bool = False,
+        prompt_injection_risk: str | None = None,
+        prompt_injection_patterns_json: list | None = None,
         processing_status: FeedbackProcessingStatus = FeedbackProcessingStatus.PENDING,
     ) -> FeedbackRecord:
         record = FeedbackRecord(
@@ -24,6 +30,12 @@ class FeedbackRepository:
             raw_text=raw_text,
             extracted_text=extracted_text,
             normalized_text=normalized_text,
+            sanitized_text=sanitized_text,
+            pii_detected=pii_detected,
+            pii_types_json=pii_types_json,
+            prompt_injection_detected=prompt_injection_detected,
+            prompt_injection_risk=prompt_injection_risk,
+            prompt_injection_patterns_json=prompt_injection_patterns_json,
             processing_status=processing_status,
         )
         self.session.add(record)
@@ -60,6 +72,12 @@ class FeedbackRepository:
             )
         )
         return records, total
+
+    def count_by_processing_status(self) -> dict[str, int]:
+        rows = self.session.execute(
+            select(FeedbackRecord.processing_status, func.count()).group_by(FeedbackRecord.processing_status)
+        )
+        return {str(status.value if hasattr(status, "value") else status): count for status, count in rows}
 
     def update_status(
         self,

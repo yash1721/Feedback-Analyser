@@ -19,6 +19,10 @@ class IngestionResult(BaseModel):
     raw_text: str | None = None
     extracted_text: str | None = None
     normalized_text: str | None = None
+    sanitized_text: str | None = None
+    pii_detected: bool = False
+    prompt_injection_detected: bool = False
+    prompt_injection_risk: str | None = None
     error_code: str | None = None
     error_message: str | None = None
 

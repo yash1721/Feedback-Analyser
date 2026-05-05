@@ -3,6 +3,7 @@ from time import perf_counter
 
 from app.config import Settings
 from app.core.exceptions import NotFoundError
+from app.core.metrics import EVALUATION_LATENCY_SECONDS, EVALUATION_RUNS_TOTAL, Timer
 from app.domain.analysis.confidence import apply_confidence_policy
 from app.domain.analysis.output_parser import AnalysisOutputParseError, parse_structured_analysis
 from app.domain.analysis.prompts import build_feedback_analysis_prompt
@@ -43,6 +44,7 @@ class EvaluationService:
         self.report_generator = report_generator or EvaluationReportGenerator(settings.evaluation_report_dir)
 
     def run_evaluation(self, request: EvaluationRunCreate) -> EvaluationRunResult:
+        run_timer = Timer()
         dataset = self.dataset_loader.load(request.dataset_path)
         dataset_name = request.dataset_name or dataset.name
         prompt_version = request.prompt_version or self.settings.llm_prompt_version
@@ -93,6 +95,8 @@ class EvaluationService:
             report_path = self.report_generator.write_reports(run, item_metrics)
             self.repository.update_run(run, report_path=report_path)
             self.repository.session.commit()
+        EVALUATION_RUNS_TOTAL.labels(provider=provider.provider_name, status="success").inc()
+        EVALUATION_LATENCY_SECONDS.labels(provider=provider.provider_name).observe(run_timer.elapsed())
         return EvaluationRunResult(
             run=EvaluationRunSummary.model_validate(run),
             metrics=aggregate,

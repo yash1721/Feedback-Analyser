@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Depends
+
+from app.core.auth import require_permission
 from pydantic import BaseModel, Field
 from typing import Any
 
@@ -7,7 +9,7 @@ from app.core.responses import success_response
 from app.dependencies import get_retrieval_service
 from app.domain.retrieval.retrieval_service import RetrievalService
 
-router = APIRouter(prefix="/retrieval", tags=["retrieval"])
+router = APIRouter(prefix="/retrieval", tags=["retrieval"], dependencies=[Depends(require_permission("retrieval:search"))])
 
 
 class RetrievalSearchRequest(BaseModel):

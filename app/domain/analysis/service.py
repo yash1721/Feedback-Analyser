@@ -1,5 +1,6 @@
 from app.config import Settings
 from app.core.exceptions import BadRequestError, FeedbackIQError, NotFoundError
+from app.core.metrics import ANALYSIS_INVALID_OUTPUT_TOTAL, ANALYSIS_LATENCY_SECONDS, ANALYSIS_RUNS_TOTAL, GUARDRAIL_VIOLATIONS_TOTAL, Timer
 from app.domain.analysis.confidence import apply_confidence_policy
 from app.domain.analysis.output_parser import AnalysisOutputParseError, parse_structured_analysis
 from app.domain.analysis.prompts import build_feedback_analysis_prompt
@@ -7,6 +8,7 @@ from app.domain.analysis.repository import AnalysisRepository
 from app.domain.analysis.schemas import AnalysisResponse, StructuredAnalysisOutput, ValidationStatus
 from app.domain.feedback.models import FeedbackRecord
 from app.domain.feedback.service import FeedbackService
+from app.domain.guardrails.output_guardrails import OutputGuardrailService
 from app.domain.llm.provider import LLMProvider
 from app.domain.retrieval.retrieval_service import RetrievalService
 
@@ -21,6 +23,7 @@ class AnalysisService:
         provider: LLMProvider,
         fallback_provider: LLMProvider | None,
         settings: Settings,
+        output_guardrail_service: OutputGuardrailService | None = None,
     ) -> None:
         self.repository = repository
         self.feedback_service = feedback_service
@@ -28,8 +31,12 @@ class AnalysisService:
         self.provider = provider
         self.fallback_provider = fallback_provider
         self.settings = settings
+        self.output_guardrail_service = output_guardrail_service or OutputGuardrailService()
 
     def run_feedback_analysis(self, feedback_id: int) -> AnalysisResponse:
+        provider_label = self.provider.provider_name
+        model_label = self.provider.model_name
+        timer = Timer()
         record = self.feedback_service.get_feedback_record(feedback_id)
         text = self._analysis_text(record)
         retrieval = self.retrieval_service.search_with_options(
@@ -57,8 +64,12 @@ class AnalysisService:
                     error_message="LLM provider failed.",
                     input_preview=text,
                 )
+                ANALYSIS_RUNS_TOTAL.labels(provider=provider_label, model=model_label, status="failed").inc()
+                ANALYSIS_LATENCY_SECONDS.labels(provider=provider_label, model=model_label).observe(timer.elapsed())
                 raise FeedbackIQError("LLM provider failed.", {"analysis_run_id": run.id}) from exc
             provider = self.fallback_provider
+            provider_label = provider.provider_name
+            model_label = provider.model_name
             provider_response = provider.analyze_feedback(prompt)
 
         try:
@@ -68,6 +79,9 @@ class AnalysisService:
                 evidence=retrieval.results,
                 threshold=self.settings.llm_confidence_threshold,
             )
+            guardrail = self.output_guardrail_service.validate(output)
+            if not guardrail.allowed:
+                raise AnalysisOutputParseError(guardrail.reason or "LLM output violated safety guardrails.")
         except AnalysisOutputParseError as exc:
             run = self.repository.create_run(
                 feedback_record_id=feedback_id,
@@ -82,6 +96,10 @@ class AnalysisService:
                 error_message=exc.message,
             )
             self.repository.session.commit()
+            ANALYSIS_RUNS_TOTAL.labels(provider=provider_response.provider, model=provider_response.model_name, status="invalid").inc()
+            ANALYSIS_INVALID_OUTPUT_TOTAL.labels(provider=provider_response.provider, model=provider_response.model_name).inc()
+            GUARDRAIL_VIOLATIONS_TOTAL.labels(reason="output_validation").inc()
+            ANALYSIS_LATENCY_SECONDS.labels(provider=provider_response.provider, model=provider_response.model_name).observe(timer.elapsed())
             return AnalysisResponse(
                 feedback_id=feedback_id,
                 analysis_run_id=run.id,
@@ -107,6 +125,8 @@ class AnalysisService:
         )
         self.repository.session.commit()
         self.feedback_service.attach_structured_analysis_result(feedback_id, analysis_run_id=run.id, output=output)
+        ANALYSIS_RUNS_TOTAL.labels(provider=provider_response.provider, model=provider_response.model_name, status="success").inc()
+        ANALYSIS_LATENCY_SECONDS.labels(provider=provider_response.provider, model=provider_response.model_name).observe(timer.elapsed())
         return AnalysisResponse(
             feedback_id=feedback_id,
             analysis_run_id=run.id,
@@ -154,9 +174,12 @@ class AnalysisService:
         self.repository.session.commit()
         return run
 
-    @staticmethod
-    def _analysis_text(record: FeedbackRecord) -> str:
-        text = record.normalized_text or record.extracted_text or record.raw_text
+    def _analysis_text(self, record: FeedbackRecord) -> str:
+        text = (
+            record.sanitized_text
+            if self.settings.pii_analysis_uses_redacted_text and record.sanitized_text
+            else record.normalized_text or record.extracted_text or record.raw_text
+        )
         if not text:
             raise BadRequestError("Feedback record does not contain text that can be analyzed.", {"feedback_id": record.id})
         return text

@@ -1,17 +1,19 @@
 from fastapi import APIRouter, Depends
 
+from app.core.auth import require_permission
 from app.core.responses import success_response
 from app.dependencies import get_analysis_service, get_feedback_service
 from app.domain.analysis.schemas import AnalysisRunResponse, LatestAnalysisResponse
 from app.domain.analysis.service import AnalysisService
 from app.domain.feedback.service import FeedbackService
 
-router = APIRouter(prefix="/analysis", tags=["analysis"])
+router = APIRouter(prefix="/analysis", tags=["analysis"], dependencies=[Depends(require_permission("analysis:read"))])
 
 
 @router.post("/feedback-records/{feedback_id}/run")
 def run_feedback_analysis(
     feedback_id: int,
+    _=Depends(require_permission("analysis:run")),
     service: AnalysisService = Depends(get_analysis_service),
 ) -> dict:
     response = service.run_feedback_analysis(feedback_id)

@@ -26,10 +26,12 @@ class ImageDownloader:
     def download_image(self, url: str) -> DownloadedImage:
         safe_url = validate_public_http_url(url)
         try:
-            response = requests.get(safe_url, timeout=self.timeout_seconds, stream=True)
+            response = requests.get(safe_url, timeout=self.timeout_seconds, stream=True, allow_redirects=False)
         except requests.RequestException as exc:
             raise DownloadError("Image URL could not be downloaded.") from exc
 
+        if 300 <= response.status_code < 400:
+            raise DownloadError("Image URL redirects are not allowed.")
         if response.status_code >= 400:
             raise DownloadError("Image URL returned an unsuccessful status.", {"status_code": response.status_code})
 

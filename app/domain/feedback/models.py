@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import StrEnum
 
-from sqlalchemy import DateTime, Enum, Float, String, Text, func
+from sqlalchemy import Boolean, DateTime, Enum, Float, JSON, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -36,6 +36,12 @@ class FeedbackRecord(Base):
     raw_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     extracted_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     normalized_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    sanitized_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    pii_detected: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    pii_types_json: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    prompt_injection_detected: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    prompt_injection_risk: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    prompt_injection_patterns_json: Mapped[list | None] = mapped_column(JSON, nullable=True)
     sentiment_label: Mapped[str | None] = mapped_column(String(64), index=True, nullable=True)
     sentiment_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     category: Mapped[str | None] = mapped_column(String(64), index=True, nullable=True)

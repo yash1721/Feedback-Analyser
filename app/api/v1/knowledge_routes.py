@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends
 
+from app.core.auth import require_permission
 from app.core.pagination import PaginationParams
 from app.core.responses import success_response
 from app.dependencies import get_knowledge_service
@@ -12,12 +13,13 @@ from app.domain.knowledge.schemas import (
 )
 from app.domain.knowledge.service import KnowledgeService
 
-router = APIRouter(prefix="/knowledge", tags=["knowledge"])
+router = APIRouter(prefix="/knowledge", tags=["knowledge"], dependencies=[Depends(require_permission("knowledge:read"))])
 
 
 @router.post("/documents")
 def create_knowledge_document(
     payload: KnowledgeDocumentCreate,
+    _=Depends(require_permission("knowledge:write")),
     service: KnowledgeService = Depends(get_knowledge_service),
 ) -> dict:
     document = service.create_document(
@@ -56,6 +58,7 @@ def get_knowledge_document(
 @router.post("/documents/{document_id}/index")
 def index_knowledge_document(
     document_id: int,
+    _=Depends(require_permission("knowledge:write")),
     service: KnowledgeService = Depends(get_knowledge_service),
 ) -> dict:
     document, indexed_chunks = service.index_document(document_id)

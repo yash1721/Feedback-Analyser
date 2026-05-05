@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 
 from app.config import Settings
 from app.core.exceptions import BadRequestError, NotFoundError
+from app.core.metrics import WORKFLOW_ESCALATIONS_TOTAL, WORKFLOW_REVIEWS_CREATED_TOTAL, WORKFLOW_TICKETS_CREATED_TOTAL
 from app.domain.feedback.models import FeedbackRecord
 from app.domain.feedback.service import FeedbackService
 from app.domain.notifications.provider import NotificationProvider
@@ -148,6 +149,11 @@ class WorkflowService:
             self.notification_provider.notify_review_required(review)
 
         self.repository.session.commit()
+        WORKFLOW_TICKETS_CREATED_TOTAL.labels(status=ticket.status.value if hasattr(ticket.status, "value") else str(ticket.status)).inc()
+        if status == TicketStatus.ESCALATED:
+            WORKFLOW_ESCALATIONS_TOTAL.inc()
+        if review_created:
+            WORKFLOW_REVIEWS_CREATED_TOTAL.inc()
         return WorkflowCreateTicketResult(
             ticket=ticket,
             review_created=review_created,

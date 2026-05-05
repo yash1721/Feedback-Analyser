@@ -1,7 +1,9 @@
 from hashlib import sha256
 
 from app.config import Settings
-from app.core.exceptions import NotFoundError
+from app.core.exceptions import BadRequestError, NotFoundError
+from app.core.metrics import PROMPT_INJECTION_DETECTED_TOTAL
+from app.domain.guardrails.prompt_injection import PromptInjectionDetector, PromptInjectionRisk
 from app.domain.knowledge.chunking import TextChunker
 from app.domain.knowledge.models import KnowledgeDocument, RetrievalTrace
 from app.domain.knowledge.repository import KnowledgeRepository
@@ -17,11 +19,13 @@ class KnowledgeService:
         embedding_model: EmbeddingModel,
         vector_store: VectorStore,
         settings: Settings,
+        prompt_injection_detector: PromptInjectionDetector | None = None,
     ) -> None:
         self.repository = repository
         self.embedding_model = embedding_model
         self.vector_store = vector_store
         self.settings = settings
+        self.prompt_injection_detector = prompt_injection_detector or PromptInjectionDetector()
         self.chunker = TextChunker(
             chunk_size_chars=settings.knowledge_chunk_size_chars,
             overlap_chars=settings.knowledge_chunk_overlap_chars,
@@ -36,6 +40,12 @@ class KnowledgeService:
         source_name: str | None,
         metadata: dict | None,
     ) -> KnowledgeDocument:
+        if self.settings.prompt_injection_detection_enabled:
+            injection = self.prompt_injection_detector.detect(text)
+            if injection.detected:
+                PROMPT_INJECTION_DETECTED_TOTAL.labels(risk_level=injection.risk_level.value).inc()
+                if self.settings.prompt_injection_mode == "block" and injection.risk_level == PromptInjectionRisk.HIGH:
+                    raise BadRequestError("Knowledge document contains high-risk prompt-injection instructions.")
         document = self.repository.create_document(
             title=title,
             source_type=source_type,

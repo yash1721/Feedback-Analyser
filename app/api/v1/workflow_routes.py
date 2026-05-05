@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, Query
 
+from app.core.auth import require_permission
 from app.core.responses import success_response
 from app.dependencies import get_workflow_service
 from app.domain.workflow.schemas import (
@@ -10,7 +11,7 @@ from app.domain.workflow.schemas import (
 )
 from app.domain.workflow.service import WorkflowService
 
-router = APIRouter(prefix="/workflows", tags=["workflows"])
+router = APIRouter(prefix="/workflows", tags=["workflows"], dependencies=[Depends(require_permission("workflow:write"))])
 
 
 @router.post("/feedback-records/{feedback_id}/create-ticket")

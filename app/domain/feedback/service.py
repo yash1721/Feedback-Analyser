@@ -40,6 +40,12 @@ class FeedbackService:
         original_input_reference: str | None = None,
         raw_text: str | None = None,
         extracted_text: str | None = None,
+        sanitized_text: str | None = None,
+        pii_detected: bool = False,
+        pii_types_json: list | None = None,
+        prompt_injection_detected: bool = False,
+        prompt_injection_risk: str | None = None,
+        prompt_injection_patterns_json: list | None = None,
         processing_status: FeedbackProcessingStatus = FeedbackProcessingStatus.EXTRACTED,
         error_code: str | None = None,
         error_message: str | None = None,
@@ -51,6 +57,12 @@ class FeedbackService:
             raw_text=raw_text,
             extracted_text=extracted_text,
             normalized_text=normalized_text,
+            sanitized_text=sanitized_text,
+            pii_detected=pii_detected,
+            pii_types_json=pii_types_json,
+            prompt_injection_detected=prompt_injection_detected,
+            prompt_injection_risk=prompt_injection_risk,
+            prompt_injection_patterns_json=prompt_injection_patterns_json,
             processing_status=processing_status,
         )
         record.error_code = error_code
@@ -161,6 +173,29 @@ class FeedbackService:
         record = self.get_feedback_record(feedback_id)
         record.extracted_text = extracted_text
         record.normalized_text = self.normalize_text(extracted_text)
+        self.repository.session.flush()
+        self.repository.session.refresh(record)
+        self.repository.session.commit()
+        return record
+
+    def update_security_metadata(
+        self,
+        feedback_id: int,
+        *,
+        sanitized_text: str | None,
+        pii_detected: bool,
+        pii_types_json: list | None,
+        prompt_injection_detected: bool,
+        prompt_injection_risk: str | None,
+        prompt_injection_patterns_json: list | None,
+    ) -> FeedbackRecord:
+        record = self.get_feedback_record(feedback_id)
+        record.sanitized_text = sanitized_text
+        record.pii_detected = pii_detected
+        record.pii_types_json = pii_types_json
+        record.prompt_injection_detected = prompt_injection_detected
+        record.prompt_injection_risk = prompt_injection_risk
+        record.prompt_injection_patterns_json = prompt_injection_patterns_json
         self.repository.session.flush()
         self.repository.session.refresh(record)
         self.repository.session.commit()

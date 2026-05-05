@@ -3,6 +3,7 @@ import logging
 
 from app.config import Settings
 from app.core.exceptions import BadRequestError, FeedbackIQError, NotFoundError, QueueUnavailableError
+from app.core.metrics import PROCESSING_JOBS_TOTAL, PROCESSING_JOB_DURATION_SECONDS, Timer, update_processing_status_gauges
 from app.domain.analysis.schemas import ValidationStatus
 from app.domain.analysis.service import AnalysisService
 from app.domain.feedback.feedback_analysis_service import FeedbackAnalysisService
@@ -99,17 +100,24 @@ class ProcessingService:
             feedback_id,
             processing_task_id=enqueued_job.task_id,
         )
+        PROCESSING_JOBS_TOTAL.labels(event="enqueue", status="queued").inc()
         return ProcessingEnqueueResult(record=updated, task_id=enqueued_job.task_id, enqueued=True)
 
     def get_feedback_status(self, feedback_id: int) -> FeedbackRecord:
-        return self.feedback_service.get_feedback_record(feedback_id)
+        record = self.feedback_service.get_feedback_record(feedback_id)
+        if hasattr(self.feedback_service.repository, "count_by_processing_status"):
+            update_processing_status_gauges(self.feedback_service.repository.count_by_processing_status())
+        return record
 
     def process_feedback_record(self, feedback_id: int) -> FeedbackRecord:
+        timer = Timer()
+        final_status = "failed"
         try:
             record = self.feedback_service.get_feedback_record(feedback_id)
         except NotFoundError as exc:
             raise PermanentProcessingError("record_not_found", "Feedback record was not found.") from exc
         if record.processing_status == FeedbackProcessingStatus.COMPLETED:
+            PROCESSING_JOBS_TOTAL.labels(event="process", status="completed").inc()
             return record
         if record.processing_status == FeedbackProcessingStatus.FAILED:
             raise PermanentProcessingError("invalid_processing_state", "Failed records require an explicit reset before processing.")
@@ -153,6 +161,9 @@ class ProcessingService:
                     self.workflow_service.create_ticket_for_feedback(feedback_id)
                 except Exception:
                     logger.exception("Workflow ticket creation failed after processing", extra={"feedback_id": feedback_id})
+            final_status = "completed"
+            PROCESSING_JOBS_TOTAL.labels(event="process", status=final_status).inc()
+            PROCESSING_JOB_DURATION_SECONDS.labels(status=final_status).observe(timer.elapsed())
             return self.feedback_service.get_feedback_record(feedback_id)
 
         try:
@@ -162,11 +173,15 @@ class ProcessingService:
         except Exception as exc:
             raise TransientProcessingError("processing_error", "Feedback processing failed.") from exc
 
-        return self.feedback_service.attach_analysis_result(
+        updated = self.feedback_service.attach_analysis_result(
             feedback_id,
             sentiment=result.sentiment,
             routing=result.routing,
         )
+        final_status = "completed"
+        PROCESSING_JOBS_TOTAL.labels(event="process", status=final_status).inc()
+        PROCESSING_JOB_DURATION_SECONDS.labels(status=final_status).observe(timer.elapsed())
+        return updated
 
     def mark_failed(self, feedback_id: int, *, error_code: str, error_message: str) -> FeedbackRecord:
         return self.feedback_service.mark_failed(feedback_id, error_code=error_code, error_message=error_message)

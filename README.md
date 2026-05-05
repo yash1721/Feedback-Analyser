@@ -20,6 +20,18 @@ POST /api/v1/evaluations/runs
 
 Detailed notes are in `docs/evaluation-and-llmops.md`.
 
+## Phase 8: Observability
+
+FeedbackIQ exposes structured logging, correlation IDs, readiness/liveness checks, and Prometheus-compatible metrics.
+
+```powershell
+curl.exe http://localhost:8000/metrics
+curl.exe http://localhost:8000/api/v1/health/live
+curl.exe http://localhost:8000/api/v1/health/ready
+```
+
+Detailed notes are in `docs/observability.md`.
+
 FeedbackIQ is a FastAPI backend for OCR-based feedback extraction, vector retrieval, RAG-style context building, sentiment analysis, and team routing.
 
 ## What It Does
@@ -40,6 +52,7 @@ FeedbackIQ is a FastAPI backend for OCR-based feedback extraction, vector retrie
 - Stores retrieval traces as RAG evidence.
 - Produces RAG-grounded structured feedback analysis with a local LLM provider abstraction.
 - Creates internal workflow tickets, escalations, human reviews, audit logs, and mock/log notifications from analysis results.
+- Adds API key protection, rate limiting, PII redaction, prompt-injection detection, output guardrails, and security audit logs.
 
 ## Architecture
 
@@ -62,6 +75,8 @@ Phase 4 adds Qdrant-backed retrieval. PostgreSQL stores documents, chunks, and r
 Phase 5 adds structured analysis. Feedback records are analyzed with retrieved evidence, validated JSON output, analysis run history, and latest operational fields on `feedback_records`.
 
 Phase 6 adds workflow automation. The latest analysis can create an internal ticket, apply deterministic escalation/review rules, detect simple duplicates, persist audit logs, and notify through a local adapter.
+
+Phase 9 adds security and privacy guardrails. Auth is disabled by default for local development, but API keys, roles, rate limiting, redaction, prompt-injection detection, security audit logs, and security metrics can be enabled through environment variables.
 
 ## Windows Setup
 

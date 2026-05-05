@@ -1,16 +1,18 @@
 from fastapi import APIRouter, Depends
 
+from app.core.auth import require_permission
 from app.core.responses import success_response
 from app.dependencies import get_processing_service
 from app.domain.processing.schemas import ProcessingEnqueueResponse, ProcessingStatusResponse
 from app.domain.processing.service import ProcessingService
 
-router = APIRouter(prefix="/processing", tags=["processing"])
+router = APIRouter(prefix="/processing", tags=["processing"], dependencies=[Depends(require_permission("processing:read"))])
 
 
 @router.post("/feedback-records/{feedback_id}/enqueue")
 def enqueue_feedback_record(
     feedback_id: int,
+    _=Depends(require_permission("processing:write")),
     service: ProcessingService = Depends(get_processing_service),
 ) -> dict:
     result = service.enqueue_feedback_record(feedback_id)

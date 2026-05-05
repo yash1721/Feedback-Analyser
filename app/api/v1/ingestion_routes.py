@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, File, UploadFile
 
+from app.core.auth import require_permission
 from app.core.responses import success_response
 from app.dependencies import get_multimodal_ingestion_service
 from app.domain.feedback.models import FeedbackSourceType
@@ -12,7 +13,7 @@ from app.domain.ingestion.schemas import (
     TextIngestionRequest,
 )
 
-router = APIRouter(prefix="/ingestion", tags=["ingestion"])
+router = APIRouter(prefix="/ingestion", tags=["ingestion"], dependencies=[Depends(require_permission("ingestion:write"))])
 
 
 @router.post("/text")
@@ -89,6 +90,10 @@ def _to_ingestion_result(record) -> IngestionResult:
         raw_text=record.raw_text,
         extracted_text=record.extracted_text,
         normalized_text=record.normalized_text,
+        sanitized_text=record.sanitized_text,
+        pii_detected=record.pii_detected,
+        prompt_injection_detected=record.prompt_injection_detected,
+        prompt_injection_risk=record.prompt_injection_risk,
         error_code=record.error_code,
         error_message=record.error_message,
     )

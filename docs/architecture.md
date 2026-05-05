@@ -112,3 +112,26 @@ Phase 7 adds an evaluation domain that measures the AI pipeline without mixing b
 6. `app.api.v1.evaluation_routes` exposes run creation, listing, detail, and report retrieval.
 
 Evaluation does not create workflow tickets or production feedback records. It benchmarks predictions and derived workflow decisions so normal operational state remains separate from quality measurement.
+
+## Phase 8 Observability Flow
+
+Phase 8 adds cross-cutting diagnostics:
+
+1. Correlation middleware reads or creates a correlation ID and returns it in response headers.
+2. Logging config injects the correlation ID into plain or JSON logs.
+3. HTTP metrics middleware records request count and latency by method, route template, and status.
+4. Domain services emit bounded metrics for ingestion, retrieval, analysis, workflow, processing, and evaluation.
+5. Health routes expose liveness and readiness checks.
+6. Celery tasks log task-level feedback IDs, task IDs, retries, and failures.
+
+Observability code is kept in `app.core` and middleware modules so business logic remains focused on product behavior.
+
+## Phase 9 Security Flow
+
+Phase 9 adds defense-in-depth controls:
+
+1. API key dependencies protect ingestion, retrieval, analysis, workflow, evaluation, and security endpoints when `AUTH_ENABLED=true`.
+2. Rate-limit middleware throttles requests by API key hash or client IP.
+3. Ingestion detects PII and prompt-injection patterns before persistence.
+4. Analysis uses sanitized text when configured and applies output guardrails after schema validation.
+5. Security-sensitive decisions are persisted in `security_audit_logs` and exposed as Prometheus metrics.

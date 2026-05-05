@@ -7,6 +7,9 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db.session import get_db_session, get_session_factory
+from app.domain.analytics.repository import AnalyticsRepository
+from app.domain.analytics.report import AnalyticsReportGenerator
+from app.domain.analytics.service import AnalyticsService
 from app.domain.analysis.repository import AnalysisRepository
 from app.domain.analysis.service import AnalysisService
 from app.domain.evaluation.datasets import EvaluationDatasetLoader
@@ -16,6 +19,9 @@ from app.domain.evaluation.service import EvaluationService
 from app.domain.feedback.feedback_analysis_service import FeedbackAnalysisService
 from app.domain.feedback.repository import FeedbackRepository
 from app.domain.feedback.service import FeedbackService
+from app.domain.guardrails.output_guardrails import OutputGuardrailService
+from app.domain.guardrails.pii_redaction import PIIRedactionService
+from app.domain.guardrails.prompt_injection import PromptInjectionDetector
 from app.domain.ingestion.csv_parser import CsvFeedbackParser
 from app.domain.ingestion.image_downloader import ImageDownloader
 from app.domain.ingestion.image_preprocessor import ImagePreprocessor
@@ -45,6 +51,8 @@ from app.domain.retrieval.sentence_transformer_embeddings import SentenceTransfo
 from app.domain.retrieval.vector_store import VectorStore
 from app.domain.routing.keyword_team_router import KeywordTeamRouter
 from app.domain.sentiment.hf_sentiment_analyzer import HuggingFaceSentimentAnalyzer
+from app.domain.security.repository import SecurityAuditRepository
+from app.domain.security.service import SecurityAuditService
 from app.domain.storage.local_storage_provider import LocalFileStorageProvider
 from app.domain.storage.storage_provider import StorageProvider
 from app.domain.workflow.repository import WorkflowRepository
@@ -96,12 +104,14 @@ def get_knowledge_service(
     repository: KnowledgeRepository = Depends(get_knowledge_repository),
     embedding_model: EmbeddingModel = Depends(get_embedding_model),
     vector_store: VectorStore = Depends(get_vector_store),
+    prompt_injection_detector: PromptInjectionDetector = Depends(lambda: PromptInjectionDetector()),
 ) -> KnowledgeService:
     return KnowledgeService(
         repository=repository,
         embedding_model=embedding_model,
         vector_store=vector_store,
         settings=get_settings(),
+        prompt_injection_detector=prompt_injection_detector,
     )
 
 
@@ -146,6 +156,16 @@ def build_analysis_service(feedback_service: FeedbackService) -> AnalysisService
         embedding_model=get_embedding_model(),
         vector_store=get_vector_store(),
         settings=get_settings(),
+        prompt_injection_detector=PromptInjectionDetector(),
+    )
+    return AnalysisService(
+        repository=AnalysisRepository(session),
+        feedback_service=feedback_service,
+        retrieval_service=build_retrieval_service(knowledge_service),
+        provider=get_llm_provider(),
+        fallback_provider=get_llm_fallback_provider(),
+        settings=get_settings(),
+        output_guardrail_service=OutputGuardrailService(),
     )
 
 
@@ -154,14 +174,6 @@ def build_workflow_service(feedback_service: FeedbackService) -> WorkflowService
         repository=WorkflowRepository(feedback_service.repository.session),
         feedback_service=feedback_service,
         notification_provider=get_notification_provider(),
-        settings=get_settings(),
-    )
-    return AnalysisService(
-        repository=AnalysisRepository(session),
-        feedback_service=feedback_service,
-        retrieval_service=build_retrieval_service(knowledge_service),
-        provider=get_llm_provider(),
-        fallback_provider=get_llm_fallback_provider(),
         settings=get_settings(),
     )
 
@@ -199,6 +211,20 @@ def get_feedback_analysis_service_for_worker() -> FeedbackAnalysisService:
         sentiment_analyzer=HuggingFaceSentimentAnalyzer(settings.sentiment_model_name),
         team_router=KeywordTeamRouter(),
         retrieval_service=build_retrieval_service(),
+    )
+
+
+def get_analytics_repository(session: Session = Depends(get_db_session)) -> AnalyticsRepository:
+    return AnalyticsRepository(session)
+
+
+def get_analytics_service(
+    repository: AnalyticsRepository = Depends(get_analytics_repository),
+) -> AnalyticsService:
+    settings = get_settings()
+    return AnalyticsService(
+        repository=repository,
+        report_generator=AnalyticsReportGenerator(settings.analytics_report_dir),
     )
 
 
@@ -240,6 +266,7 @@ def get_analysis_service(
     retrieval_service: RetrievalService = Depends(get_retrieval_service),
     provider: LLMProvider = Depends(get_llm_provider),
     fallback_provider: LLMProvider | None = Depends(get_llm_fallback_provider),
+    output_guardrail_service: OutputGuardrailService = Depends(lambda: OutputGuardrailService()),
 ) -> AnalysisService:
     return AnalysisService(
         repository=repository,
@@ -248,7 +275,18 @@ def get_analysis_service(
         provider=provider,
         fallback_provider=fallback_provider,
         settings=get_settings(),
+        output_guardrail_service=output_guardrail_service,
     )
+
+
+def get_security_audit_repository(session: Session = Depends(get_db_session)) -> SecurityAuditRepository:
+    return SecurityAuditRepository(session)
+
+
+def get_security_audit_service(
+    repository: SecurityAuditRepository = Depends(get_security_audit_repository),
+) -> SecurityAuditService:
+    return SecurityAuditService(repository)
 
 
 def get_evaluation_service(
@@ -321,6 +359,7 @@ def get_multimodal_ingestion_service(
     image_downloader: ImageDownloader = Depends(get_image_downloader),
     pdf_text_extractor: PdfTextExtractor = Depends(get_pdf_text_extractor),
     csv_parser: CsvFeedbackParser = Depends(get_csv_feedback_parser),
+    security_audit_service: SecurityAuditService = Depends(get_security_audit_service),
 ) -> MultimodalIngestionService:
     settings = get_settings()
     return MultimodalIngestionService(
@@ -333,4 +372,8 @@ def get_multimodal_ingestion_service(
         max_image_bytes=settings.max_image_bytes,
         max_pdf_bytes=settings.max_pdf_bytes,
         max_csv_bytes=settings.max_csv_bytes,
+        settings=settings,
+        pii_service=PIIRedactionService(),
+        prompt_injection_detector=PromptInjectionDetector(),
+        security_audit_service=security_audit_service,
     )

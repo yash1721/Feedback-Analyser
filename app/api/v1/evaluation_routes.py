@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 from fastapi.responses import PlainTextResponse
 
+from app.core.auth import require_permission
 from app.core.pagination import PaginationParams
 from app.core.responses import success_response
 from app.dependencies import get_evaluation_service
@@ -12,12 +13,13 @@ from app.domain.evaluation.schemas import (
 )
 from app.domain.evaluation.service import EvaluationService
 
-router = APIRouter(prefix="/evaluations", tags=["evaluations"])
+router = APIRouter(prefix="/evaluations", tags=["evaluations"], dependencies=[Depends(require_permission("evaluation:read"))])
 
 
 @router.post("/runs")
 def run_evaluation(
     payload: EvaluationRunCreate,
+    _=Depends(require_permission("evaluation:run")),
     service: EvaluationService = Depends(get_evaluation_service),
 ) -> dict:
     result = service.run_evaluation(payload)

@@ -9,6 +9,7 @@ from app.domain.analysis import models as analysis_models  # noqa: F401
 from app.domain.evaluation import models as evaluation_models  # noqa: F401
 from app.domain.feedback import models  # noqa: F401
 from app.domain.knowledge import models as knowledge_models  # noqa: F401
+from app.domain.security import models as security_models  # noqa: F401
 from app.domain.workflow import models as workflow_models  # noqa: F401
 
 config = context.config

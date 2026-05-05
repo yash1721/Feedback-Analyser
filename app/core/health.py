@@ -18,7 +18,7 @@ def readiness_status(settings: Settings) -> dict:
         "redis": _check_redis(settings),
         "qdrant": _check_qdrant(settings),
     }
-    overall = "ready" if all(component["status"] == "ok" for component in components.values()) else "not_ready"
+    overall = "ready" if all(component["status"] in {"ok", "skipped"} for component in components.values()) else "not_ready"
     return {
         "status": overall,
         "service": settings.app_name,

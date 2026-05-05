@@ -24,6 +24,12 @@ class FeedbackRecordRead(BaseModel):
     raw_text: str | None
     extracted_text: str | None
     normalized_text: str | None
+    sanitized_text: str | None = None
+    pii_detected: bool = False
+    pii_types_json: list | None = None
+    prompt_injection_detected: bool = False
+    prompt_injection_risk: str | None = None
+    prompt_injection_patterns_json: list | None = None
     sentiment_label: str | None
     sentiment_score: float | None
     category: str | None

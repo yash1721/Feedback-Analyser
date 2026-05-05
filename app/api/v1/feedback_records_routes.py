@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, Query
 
+from app.core.auth import require_permission
 from app.core.pagination import PaginationParams
 from app.core.responses import success_response
 from app.dependencies import get_feedback_service
@@ -12,12 +13,13 @@ from app.domain.feedback.schemas import (
 )
 from app.domain.feedback.service import FeedbackService
 
-router = APIRouter(prefix="/feedback-records", tags=["feedback-records"])
+router = APIRouter(prefix="/feedback-records", tags=["feedback-records"], dependencies=[Depends(require_permission("feedback:read"))])
 
 
 @router.post("")
 def create_feedback_record(
     payload: FeedbackRecordCreate,
+    _=Depends(require_permission("feedback:write")),
     service: FeedbackService = Depends(get_feedback_service),
 ) -> dict:
     record = service.create_text_feedback(
@@ -67,6 +69,7 @@ def get_feedback_record(
 def update_feedback_record_status(
     feedback_id: int,
     payload: FeedbackStatusUpdate,
+    _=Depends(require_permission("feedback:write")),
     service: FeedbackService = Depends(get_feedback_service),
 ) -> dict:
     record = service.update_status(

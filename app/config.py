@@ -60,6 +60,20 @@ class Settings(BaseSettings):
     workflow_auto_create_tickets: bool = False
     notification_provider: Literal["log", "mock"] = "log"
     evaluation_report_dir: str = "eval_reports"
+    analytics_report_dir: str = "analytics_reports"
+    auth_enabled: bool = False
+    api_keys: str = ""
+    metrics_auth_required: bool = False
+    ready_auth_required: bool = False
+    rate_limit_enabled: bool = False
+    rate_limit_requests_per_minute: int = Field(default=120, ge=1)
+    rate_limit_burst: int = Field(default=30, ge=1)
+    pii_redaction_enabled: bool = True
+    pii_store_raw_text: bool = True
+    pii_analysis_uses_redacted_text: bool = True
+    pii_redaction_mode: Literal["mask"] = "mask"
+    prompt_injection_detection_enabled: bool = True
+    prompt_injection_mode: Literal["warn", "block", "review"] = "warn"
 
 
 @lru_cache

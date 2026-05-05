@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.config import Settings
+from app.core.metrics import RETRIEVAL_LATENCY_SECONDS, RETRIEVAL_NO_RESULT_TOTAL, RETRIEVAL_REQUESTS_TOTAL, Timer
 from app.domain.knowledge.service import KnowledgeService
 from app.domain.retrieval.embedding_model import EmbeddingModel
 from app.domain.retrieval.rag_context_builder import RagContextBuilder
@@ -49,21 +50,32 @@ class RetrievalService:
         persist_trace: bool = False,
         feedback_record_id: int | None = None,
     ) -> RetrievalSearchResult:
-        self._ensure_initialized()
-        query_embedding = self.embedding_model.embed([query])
-        results = self.vector_store.search_with_filters(query_embedding, top_k=top_k, filters=filters)
-        rag_context = self.context_builder.build(query, results)
-        trace_id = None
-        if persist_trace and self.knowledge_service is not None:
-            trace = self.knowledge_service.persist_retrieval_trace(
-                query_text=query,
-                results=results,
-                top_k=top_k,
-                filters=filters,
-                feedback_record_id=feedback_record_id,
-            )
-            trace_id = trace.id
-        return RetrievalSearchResult(results=results, rag_context=rag_context, trace_id=trace_id)
+        provider = self.settings.vector_provider if self.settings is not None else self.vector_store.__class__.__name__
+        timer = Timer()
+        try:
+            self._ensure_initialized()
+            query_embedding = self.embedding_model.embed([query])
+            results = self.vector_store.search_with_filters(query_embedding, top_k=top_k, filters=filters)
+            rag_context = self.context_builder.build(query, results)
+            trace_id = None
+            if persist_trace and self.knowledge_service is not None:
+                trace = self.knowledge_service.persist_retrieval_trace(
+                    query_text=query,
+                    results=results,
+                    top_k=top_k,
+                    filters=filters,
+                    feedback_record_id=feedback_record_id,
+                )
+                trace_id = trace.id
+            RETRIEVAL_REQUESTS_TOTAL.labels(provider=provider, status="success").inc()
+            if not results:
+                RETRIEVAL_NO_RESULT_TOTAL.labels(provider=provider).inc()
+            return RetrievalSearchResult(results=results, rag_context=rag_context, trace_id=trace_id)
+        except Exception:
+            RETRIEVAL_REQUESTS_TOTAL.labels(provider=provider, status="failed").inc()
+            raise
+        finally:
+            RETRIEVAL_LATENCY_SECONDS.labels(provider=provider).observe(timer.elapsed())
 
     def _ensure_initialized(self) -> None:
         if self._initialized:

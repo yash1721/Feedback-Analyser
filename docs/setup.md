@@ -381,3 +381,46 @@ For full-stack verification with PostgreSQL, Redis, Qdrant, Alembic, API, CLI, a
 ```powershell
 .\scripts\verify_phase7_live.ps1
 ```
+
+# Phase 8 Observability Setup
+
+Install runtime dependencies:
+
+```powershell
+pip install -r requirements.txt
+```
+
+Run the observability live verification:
+
+```powershell
+.\scripts\verify_phase8_live.ps1
+```
+
+Useful local checks:
+
+```powershell
+curl.exe http://localhost:8000/metrics
+curl.exe http://localhost:8000/api/v1/health/live
+curl.exe http://localhost:8000/api/v1/health/ready
+```
+
+# Phase 9 Security Setup
+
+Security is local-dev friendly by default:
+
+```env
+AUTH_ENABLED=false
+API_KEYS=local-admin-key:admin
+RATE_LIMIT_ENABLED=false
+PII_REDACTION_ENABLED=true
+PROMPT_INJECTION_DETECTION_ENABLED=true
+PROMPT_INJECTION_MODE=warn
+```
+
+Run the security live verification:
+
+```powershell
+.\scripts\verify_phase9_live.ps1
+```
+
+The script enables API keys and rate limiting for the launched API process, then verifies auth failures, authenticated access, PII redaction, prompt-injection detection, unsafe URL rejection, security metrics, audit logs, and pytest.

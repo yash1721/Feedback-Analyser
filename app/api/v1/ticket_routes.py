@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, Query
 
+from app.core.auth import require_permission
 from app.core.responses import success_response
 from app.dependencies import get_workflow_service
 from app.domain.workflow.models import TicketStatus
@@ -12,7 +13,7 @@ from app.domain.workflow.schemas import (
 )
 from app.domain.workflow.service import WorkflowService
 
-router = APIRouter(prefix="/tickets", tags=["tickets"])
+router = APIRouter(prefix="/tickets", tags=["tickets"], dependencies=[Depends(require_permission("ticket:read"))])
 
 
 @router.get("")
@@ -43,6 +44,7 @@ def get_ticket(ticket_id: int, service: WorkflowService = Depends(get_workflow_s
 def update_ticket_status(
     ticket_id: int,
     request: TicketStatusUpdate,
+    _=Depends(require_permission("ticket:write")),
     service: WorkflowService = Depends(get_workflow_service),
 ) -> dict:
     ticket = service.update_ticket_status(ticket_id, status=request.status, reason=request.reason)
@@ -53,6 +55,7 @@ def update_ticket_status(
 def assign_ticket(
     ticket_id: int,
     request: TicketAssignRequest,
+    _=Depends(require_permission("ticket:write")),
     service: WorkflowService = Depends(get_workflow_service),
 ) -> dict:
     ticket = service.assign_ticket(
@@ -68,6 +71,7 @@ def assign_ticket(
 def escalate_ticket(
     ticket_id: int,
     request: TicketEscalateRequest,
+    _=Depends(require_permission("ticket:write")),
     service: WorkflowService = Depends(get_workflow_service),
 ) -> dict:
     ticket = service.escalate_ticket(ticket_id, reason=request.reason)

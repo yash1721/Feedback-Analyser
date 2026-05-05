@@ -115,6 +115,18 @@ Phase 6 uses deterministic duplicate detection based on category, assigned team,
 ## Configurable Workflow Policy
 
 SLA hours, low-confidence threshold, notification provider, and automatic ticket creation are environment-driven. The default `WORKFLOW_AUTO_CREATE_TICKETS=false` keeps workflow creation manual unless the operator opts into automatic post-analysis ticketing.
+
+## API Keys Before Full IAM
+
+Phase 9 uses API keys and simple roles instead of OAuth or SSO. This protects local/demo APIs, keeps tests deterministic, and leaves full identity management for a future deployment phase.
+
+## Best-Effort PII Redaction
+
+PII detection is regex/Luhn based. It is intentionally local and deterministic, and the docs avoid claiming complete DLP coverage. Existing raw fields remain for compatibility while sanitized text is available for prompts.
+
+## Security Audit Logs
+
+Security audit logs are separate from workflow audit logs. Workflow audit explains ticket decisions; security audit explains allowed, blocked, redacted, and suspicious actions.
 # Phase 7 Evaluation Decisions
 
 ## Golden Dataset First
@@ -136,3 +148,21 @@ Advanced external evaluation tools are intentionally deferred because they would
 ## No Operational Mutation During Evaluation
 
 Evaluation runs do not create real workflow tickets or customer feedback records. They call retrieval and provider logic, compare predictions with expected labels, and derive workflow expectations in metrics. This keeps benchmark state separate from production state.
+
+# Phase 8 Observability Decisions
+
+## Stdlib JSON Logging
+
+FeedbackIQ uses Python's standard logging with a custom JSON formatter instead of introducing a new logging framework. This keeps the dependency footprint small and works with Uvicorn and Celery.
+
+## Prometheus Metrics
+
+Metrics are Prometheus-compatible and exposed at `/metrics`. Counters track events, histograms track latency, and gauges track current state. Labels are bounded to avoid high-cardinality production metrics.
+
+## Correlation IDs
+
+The app preserves incoming `X-Correlation-ID` or `X-Request-ID`, generates one when missing, stores it in a context variable, and returns it in response headers. This allows request and service logs to be connected.
+
+## OpenTelemetry Optional
+
+OpenTelemetry setup is disabled by default. Phase 8 prioritizes correlation IDs, logs, metrics, and readiness because they give immediate operational value without requiring a collector.

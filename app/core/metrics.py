@@ -88,6 +88,41 @@ EVALUATION_LATENCY_SECONDS = Histogram(
     "Evaluation run latency in seconds.",
     ["provider"],
 )
+AUTH_FAILURES_TOTAL = Counter(
+    "feedbackiq_auth_failures_total",
+    "Total API authentication failures.",
+    ["reason"],
+)
+RATE_LIMITED_REQUESTS_TOTAL = Counter(
+    "feedbackiq_rate_limited_requests_total",
+    "Total rate-limited requests.",
+    ["endpoint_group"],
+)
+PII_REDACTIONS_TOTAL = Counter(
+    "feedbackiq_pii_redactions_total",
+    "Total PII redaction events.",
+    ["pii_type"],
+)
+PROMPT_INJECTION_DETECTED_TOTAL = Counter(
+    "feedbackiq_prompt_injection_detected_total",
+    "Total prompt injection detections.",
+    ["risk_level"],
+)
+UNSAFE_URL_BLOCKED_TOTAL = Counter(
+    "feedbackiq_unsafe_url_blocked_total",
+    "Total unsafe URL blocks.",
+    ["reason"],
+)
+FILE_UPLOAD_REJECTED_TOTAL = Counter(
+    "feedbackiq_file_upload_rejected_total",
+    "Total rejected file uploads.",
+    ["reason"],
+)
+GUARDRAIL_VIOLATIONS_TOTAL = Counter(
+    "feedbackiq_guardrail_violations_total",
+    "Total output guardrail violations.",
+    ["reason"],
+)
 
 
 def metrics_response() -> tuple[bytes, str]:
@@ -108,3 +143,8 @@ class Timer:
 
     def elapsed(self) -> float:
         return perf_counter() - self.start
+
+
+def update_processing_status_gauges(counts: dict[str, int]) -> None:
+    for status, count in counts.items():
+        PROCESSING_RECORD_STATUS_TOTAL.labels(status=status).set(count)

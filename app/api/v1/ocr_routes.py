@@ -2,12 +2,13 @@ from fastapi import APIRouter, Depends, File, UploadFile
 from pydantic import BaseModel, HttpUrl
 
 from app.config import get_settings
+from app.core.auth import require_permission
 from app.core.exceptions import PayloadTooLargeError, UnsupportedMediaTypeError
 from app.core.responses import success_response
 from app.dependencies import get_ingestion_service
 from app.domain.ingestion.ingestion_service import IngestionService
 
-router = APIRouter(prefix="/ocr", tags=["ocr"])
+router = APIRouter(prefix="/ocr", tags=["ocr"], dependencies=[Depends(require_permission("ingestion:write"))])
 
 
 class ExtractFromUrlRequest(BaseModel):

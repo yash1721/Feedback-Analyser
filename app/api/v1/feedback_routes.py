@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from app.config import get_settings
+from app.core.auth import require_permission
 from app.core.exceptions import FeedbackIQError
 from app.core.responses import success_response
 from app.dependencies import get_feedback_analysis_service, get_feedback_service_scope_provider
@@ -12,7 +13,7 @@ from app.domain.feedback.models import FeedbackProcessingStatus
 from app.domain.feedback.feedback_analysis_service import FeedbackAnalysisService
 from app.domain.feedback.service import FeedbackService
 
-router = APIRouter(prefix="/feedback", tags=["feedback"])
+router = APIRouter(prefix="/feedback", tags=["feedback"], dependencies=[Depends(require_permission("analysis:run"))])
 
 
 class FeedbackAnalyzeRequest(BaseModel):
