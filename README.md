@@ -32,6 +32,18 @@ curl.exe http://localhost:8000/api/v1/health/ready
 
 Detailed notes are in `docs/observability.md`.
 
+## Phase 10: Analytics And Reporting
+
+FeedbackIQ now exposes backend-first analytics APIs for feedback trends, sentiment/category/severity/team breakdowns, ticket and review analytics, latest evaluation metrics, deterministic executive summaries, and JSON/Markdown reports.
+
+```powershell
+Invoke-RestMethod http://localhost:8000/api/v1/analytics/summary
+Invoke-RestMethod http://localhost:8000/api/v1/analytics/executive-summary
+Invoke-RestMethod "http://localhost:8000/api/v1/analytics/report?format=markdown"
+```
+
+Detailed notes are in `docs/analytics-dashboard.md`.
+
 FeedbackIQ is a FastAPI backend for OCR-based feedback extraction, vector retrieval, RAG-style context building, sentiment analysis, and team routing.
 
 ## What It Does
@@ -53,6 +65,7 @@ FeedbackIQ is a FastAPI backend for OCR-based feedback extraction, vector retrie
 - Produces RAG-grounded structured feedback analysis with a local LLM provider abstraction.
 - Creates internal workflow tickets, escalations, human reviews, audit logs, and mock/log notifications from analysis results.
 - Adds API key protection, rate limiting, PII redaction, prompt-injection detection, output guardrails, and security audit logs.
+- Aggregates feedback, analysis, workflow, review, and evaluation data into dashboard-ready analytics and executive reports.
 
 ## Architecture
 
@@ -77,6 +90,8 @@ Phase 5 adds structured analysis. Feedback records are analyzed with retrieved e
 Phase 6 adds workflow automation. The latest analysis can create an internal ticket, apply deterministic escalation/review rules, detect simple duplicates, persist audit logs, and notify through a local adapter.
 
 Phase 9 adds security and privacy guardrails. Auth is disabled by default for local development, but API keys, roles, rate limiting, redaction, prompt-injection detection, security audit logs, and security metrics can be enabled through environment variables.
+
+Phase 10 adds a backend analytics read model. It uses SQLAlchemy aggregate queries over existing operational tables and keeps reporting separate from ingestion, analysis, workflow, and evaluation code.
 
 ## Windows Setup
 
@@ -168,6 +183,12 @@ Live Phase 6 verification:
 
 ```powershell
 .\scripts\verify_phase6_live.ps1
+```
+
+Live Phase 10 verification:
+
+```powershell
+.\scripts\verify_phase10_live.ps1
 ```
 
 ## API Examples
@@ -477,6 +498,14 @@ Phase 5 verifies RAG-grounded analysis and async integration with the local `rul
 
 ```powershell
 .\scripts\verify_phase5_live.ps1
+```
+
+## Phase 10 Live Verification
+
+Phase 10 verifies analytics summaries, trends, breakdowns, ticket/review/evaluation analytics, executive summary generation, report writing, and pytest:
+
+```powershell
+.\scripts\verify_phase10_live.ps1
 ```
 
 ## Troubleshooting

@@ -127,6 +127,22 @@ PII detection is regex/Luhn based. It is intentionally local and deterministic, 
 ## Security Audit Logs
 
 Security audit logs are separate from workflow audit logs. Workflow audit explains ticket decisions; security audit explains allowed, blocked, redacted, and suspicious actions.
+
+## Backend-First Analytics
+
+Phase 10 adds analytics APIs before a dashboard UI. This makes the backend contract testable and reusable by any future React app, BI client, or reporting script.
+
+## Live SQL Aggregations First
+
+Analytics uses SQLAlchemy aggregate queries over existing PostgreSQL tables instead of materialized views, Redis cache, or an OLAP database. This is enough for the current project size and keeps the implementation transparent. Caching and precomputed aggregates can be added later if query cost becomes measurable.
+
+## Dedicated Analytics Domain
+
+Analytics lives in `app/domain/analytics` because it reads across feedback, analysis, workflow, review, and evaluation domains. Keeping it separate avoids polluting write-side services with dashboard concerns.
+
+## Deterministic Executive Summary
+
+The executive summary is rule-based and deterministic by default. It gives a stable local demo and avoids paid LLM calls while still showing how product insights can be generated from operational metrics.
 # Phase 7 Evaluation Decisions
 
 ## Golden Dataset First

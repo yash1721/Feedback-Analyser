@@ -135,3 +135,15 @@ Phase 9 adds defense-in-depth controls:
 3. Ingestion detects PII and prompt-injection patterns before persistence.
 4. Analysis uses sanitized text when configured and applies output guardrails after schema validation.
 5. Security-sensitive decisions are persisted in `security_audit_logs` and exposed as Prometheus metrics.
+
+## Phase 10 Analytics Flow
+
+Phase 10 adds a read-heavy analytics layer:
+
+1. Operational domains keep writing normalized data to `feedback_records`, analysis runs, workflow tickets, review items, and evaluation runs.
+2. `AnalyticsRepository` performs aggregate SQLAlchemy queries across those tables.
+3. `AnalyticsService` validates time ranges, computes derived percentages, and shapes dashboard-ready DTOs.
+4. `ExecutiveSummary` turns aggregate data into deterministic leadership-friendly findings.
+5. `AnalyticsReportGenerator` writes JSON and Markdown reports under the configured report directory.
+
+Analytics is intentionally separated from the write-side services. Feedback, analysis, workflow, and evaluation services own behavior; analytics owns read models and reporting.

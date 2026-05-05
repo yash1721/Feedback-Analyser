@@ -704,6 +704,69 @@ Inspect workflow audit events:
 ```http
 GET /workflows/audit-logs?entity_type=ticket&entity_id=1
 ```
+
+## Analytics
+
+Phase 10 adds dashboard-ready read APIs under `/analytics`. When `AUTH_ENABLED=true`, callers need an API key with `analytics:read`.
+
+Summary:
+
+```http
+GET /analytics/summary?start_date=2026-05-01T00:00:00Z&end_date=2026-05-06T23:59:59Z
+```
+
+```json
+{
+  "success": true,
+  "message": "success",
+  "data": {
+    "total_feedback": 12,
+    "negative_feedback_percentage": 41.67,
+    "failed_processing_percentage": 0.0,
+    "average_confidence_score": 0.82,
+    "source_type_breakdown": [],
+    "processing_status_breakdown": [],
+    "sentiment_breakdown": [],
+    "category_breakdown": [],
+    "severity_breakdown": [],
+    "team_breakdown": []
+  },
+  "error": null
+}
+```
+
+Trend and breakdown endpoints:
+
+```http
+GET /analytics/feedback-trends?interval=day
+GET /analytics/sentiment-breakdown
+GET /analytics/category-breakdown
+GET /analytics/severity-breakdown
+GET /analytics/team-routing
+```
+
+Workflow and evaluation analytics:
+
+```http
+GET /analytics/tickets
+GET /analytics/reviews
+GET /analytics/evaluations
+```
+
+Executive summary:
+
+```http
+GET /analytics/executive-summary
+```
+
+Report generation:
+
+```http
+GET /analytics/report?format=markdown
+GET /analytics/report?format=json
+```
+
+Reports are written under `ANALYTICS_REPORT_DIR`, which defaults to `analytics_reports`.
 # Evaluation API
 
 Phase 7 adds benchmark endpoints under `/api/v1/evaluations`.

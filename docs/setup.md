@@ -95,6 +95,7 @@ WORKFLOW_P0_SLA_HOURS=4
 WORKFLOW_P1_SLA_HOURS=12
 WORKFLOW_AUTO_CREATE_TICKETS=false
 NOTIFICATION_PROVIDER=log
+ANALYTICS_REPORT_DIR=analytics_reports
 ```
 
 Open:
@@ -424,3 +425,25 @@ Run the security live verification:
 ```
 
 The script enables API keys and rate limiting for the launched API process, then verifies auth failures, authenticated access, PII redaction, prompt-injection detection, unsafe URL rejection, security metrics, audit logs, and pytest.
+
+# Phase 10 Analytics Setup
+
+Analytics reports are written to:
+
+```env
+ANALYTICS_REPORT_DIR=analytics_reports
+```
+
+Run the analytics live verification:
+
+```powershell
+.\scripts\verify_phase10_live.ps1
+```
+
+The script starts PostgreSQL, Redis, and Qdrant, runs migrations, launches the API, creates sample feedback/analysis/workflow/evaluation data, verifies analytics endpoints, writes a report, and runs pytest. If Windows blocks the default pytest temp directory, run tests with:
+
+```powershell
+$env:TMP="$PWD\.tmp"
+$env:TEMP=$env:TMP
+pytest
+```
