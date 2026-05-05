@@ -652,3 +652,41 @@ Inspect workflow audit events:
 ```http
 GET /workflows/audit-logs?entity_type=ticket&entity_id=1
 ```
+# Evaluation API
+
+Phase 7 adds benchmark endpoints under `/api/v1/evaluations`.
+
+## Create Evaluation Run
+
+`POST /api/v1/evaluations/runs`
+
+Example body:
+
+```json
+{
+  "provider": "rule_based",
+  "prompt_version": "feedback-analysis-v1",
+  "top_k": 3,
+  "write_report": true
+}
+```
+
+The response includes run metadata, aggregate metrics, and the report path when report writing is enabled.
+
+## List Evaluation Runs
+
+`GET /api/v1/evaluations/runs?limit=20&offset=0`
+
+Returns persisted benchmark history.
+
+## Get Evaluation Run
+
+`GET /api/v1/evaluations/runs/{run_id}`
+
+Returns run metadata and per-example evaluation items.
+
+## Get Evaluation Report
+
+`GET /api/v1/evaluations/runs/{run_id}/report`
+
+Returns the generated Markdown report as plain text.

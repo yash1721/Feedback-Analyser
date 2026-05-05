@@ -14,6 +14,11 @@ class Settings(BaseSettings):
     environment: Literal["local", "test", "production"] = "local"
     debug: bool = False
     api_v1_prefix: str = "/api/v1"
+    service_name: str = "FeedbackIQ"
+    log_level: str = "INFO"
+    log_format: Literal["plain", "json"] = "plain"
+    otel_enabled: bool = False
+    otel_exporter_otlp_endpoint: str | None = None
 
     request_timeout_seconds: float = 10.0
     max_image_bytes: int = Field(default=5 * 1024 * 1024, ge=1)
@@ -54,6 +59,7 @@ class Settings(BaseSettings):
     workflow_p1_sla_hours: int = Field(default=12, ge=1)
     workflow_auto_create_tickets: bool = False
     notification_provider: Literal["log", "mock"] = "log"
+    evaluation_report_dir: str = "eval_reports"
 
 
 @lru_cache

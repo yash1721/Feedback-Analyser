@@ -9,6 +9,10 @@ from app.config import get_settings
 from app.db.session import get_db_session, get_session_factory
 from app.domain.analysis.repository import AnalysisRepository
 from app.domain.analysis.service import AnalysisService
+from app.domain.evaluation.datasets import EvaluationDatasetLoader
+from app.domain.evaluation.repository import EvaluationRepository
+from app.domain.evaluation.report import EvaluationReportGenerator
+from app.domain.evaluation.service import EvaluationService
 from app.domain.feedback.feedback_analysis_service import FeedbackAnalysisService
 from app.domain.feedback.repository import FeedbackRepository
 from app.domain.feedback.service import FeedbackService
@@ -103,6 +107,10 @@ def get_knowledge_service(
 
 def get_analysis_repository(session: Session = Depends(get_db_session)) -> AnalysisRepository:
     return AnalysisRepository(session)
+
+
+def get_evaluation_repository(session: Session = Depends(get_db_session)) -> EvaluationRepository:
+    return EvaluationRepository(session)
 
 
 def get_llm_provider() -> LLMProvider:
@@ -240,6 +248,22 @@ def get_analysis_service(
         provider=provider,
         fallback_provider=fallback_provider,
         settings=get_settings(),
+    )
+
+
+def get_evaluation_service(
+    repository: EvaluationRepository = Depends(get_evaluation_repository),
+    retrieval_service: RetrievalService = Depends(get_retrieval_service),
+    provider: LLMProvider = Depends(get_llm_provider),
+) -> EvaluationService:
+    settings = get_settings()
+    return EvaluationService(
+        repository=repository,
+        retrieval_service=retrieval_service,
+        provider=provider,
+        settings=settings,
+        dataset_loader=EvaluationDatasetLoader(),
+        report_generator=EvaluationReportGenerator(settings.evaluation_report_dir),
     )
 
 

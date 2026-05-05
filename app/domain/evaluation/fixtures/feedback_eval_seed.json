@@ -1,0 +1,59 @@
+{
+  "name": "feedbackiq_seed",
+  "version": "v1",
+  "description": "Small golden evaluation dataset for FeedbackIQ RAG analysis and workflow quality checks.",
+  "examples": [
+    {
+      "id": "payment_001",
+      "feedback_text": "Payment failed during checkout and refund was delayed.",
+      "expected_sentiment": "NEGATIVE",
+      "expected_category": "PAYMENT",
+      "expected_severity": "P1",
+      "expected_routed_team": "Payment Team",
+      "expected_keywords": ["payment", "checkout", "refund"],
+      "expected_relevant_document_titles": ["Payments Knowledge Base"],
+      "expected_escalate": true,
+      "expected_needs_review": true,
+      "notes": "Payment failure should route to the payment team and escalate."
+    },
+    {
+      "id": "delivery_001",
+      "feedback_text": "The shipment was delayed and delivery tracking never updated.",
+      "expected_sentiment": "NEGATIVE",
+      "expected_category": "DELIVERY",
+      "expected_severity": "P2",
+      "expected_routed_team": "Logistics Team",
+      "expected_keywords": ["shipment", "delivery", "tracking"],
+      "expected_relevant_document_titles": ["Delivery Knowledge Base"],
+      "expected_escalate": false,
+      "expected_needs_review": false,
+      "notes": "Delivery delay should route to logistics without high-severity escalation."
+    },
+    {
+      "id": "ui_001",
+      "feedback_text": "The checkout button is confusing on the mobile screen.",
+      "expected_sentiment": "NEUTRAL",
+      "expected_category": "UI",
+      "expected_severity": "P3",
+      "expected_routed_team": "Frontend Team",
+      "expected_keywords": ["button", "mobile", "screen"],
+      "expected_relevant_document_titles": ["Frontend Experience Guide"],
+      "expected_escalate": false,
+      "expected_needs_review": false,
+      "notes": "UI usability feedback should route to frontend."
+    },
+    {
+      "id": "security_001",
+      "feedback_text": "I noticed possible fraud and a security breach on my account.",
+      "expected_sentiment": "NEGATIVE",
+      "expected_category": "SECURITY",
+      "expected_severity": "P0",
+      "expected_routed_team": "Backend Team",
+      "expected_keywords": ["fraud", "security", "breach"],
+      "expected_relevant_document_titles": ["Security Incident Runbook"],
+      "expected_escalate": true,
+      "expected_needs_review": true,
+      "notes": "Security breach should be treated as highest severity."
+    }
+  ]
+}

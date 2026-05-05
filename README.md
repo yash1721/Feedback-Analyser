@@ -1,5 +1,25 @@
 # FeedbackIQ
 
+## Phase 7: Evaluation and LLMOps
+
+FeedbackIQ now includes a lightweight evaluation layer for RAG and LLM quality. It supports golden datasets, retrieval metrics, analysis label accuracy, workflow decision checks, groundedness checks, latency summaries, persisted benchmark runs, and JSON/Markdown reports.
+
+Run the default benchmark:
+
+```powershell
+python .\scripts\run_evaluation.py --provider rule_based --top-k 3
+```
+
+Use `--live-retrieval` when you want the CLI to call the configured vector and embedding providers instead of the built-in fixture retriever.
+
+API entry point:
+
+```text
+POST /api/v1/evaluations/runs
+```
+
+Detailed notes are in `docs/evaluation-and-llmops.md`.
+
 FeedbackIQ is a FastAPI backend for OCR-based feedback extraction, vector retrieval, RAG-style context building, sentiment analysis, and team routing.
 
 ## What It Does

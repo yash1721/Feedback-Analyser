@@ -115,3 +115,24 @@ Phase 6 uses deterministic duplicate detection based on category, assigned team,
 ## Configurable Workflow Policy
 
 SLA hours, low-confidence threshold, notification provider, and automatic ticket creation are environment-driven. The default `WORKFLOW_AUTO_CREATE_TICKETS=false` keeps workflow creation manual unless the operator opts into automatic post-analysis ticketing.
+# Phase 7 Evaluation Decisions
+
+## Golden Dataset First
+
+FeedbackIQ uses a small JSON seed dataset before adding larger benchmark sets. This makes quality measurement reproducible and keeps normal tests fast. Without golden labels, we could only verify that the system returns output, not whether the output is correct.
+
+## DB Run History Plus File Reports
+
+Evaluation runs and items are stored in PostgreSQL so results are queryable through the API. JSON and Markdown reports are also written to disk because they are easier to inspect during local demos and interviews.
+
+The alternative was reports-only. That is simpler, but it loses experiment history and API access.
+
+## Lightweight Metrics
+
+Phase 7 starts with accuracy, precision@k, recall@k, hit@k, MRR, groundedness status, failure rates, and latency percentiles. These metrics map directly to current FeedbackIQ behavior and stay deterministic in tests.
+
+Advanced external evaluation tools are intentionally deferred because they would add dependency and cost before the baseline measurement layer is stable.
+
+## No Operational Mutation During Evaluation
+
+Evaluation runs do not create real workflow tickets or customer feedback records. They call retrieval and provider logic, compare predictions with expected labels, and derive workflow expectations in metrics. This keeps benchmark state separate from production state.

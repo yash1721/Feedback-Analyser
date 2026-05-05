@@ -99,3 +99,16 @@ Phase 6 turns validated analysis into operational work:
 7. `NotificationProvider` emits mock/log notifications through an adapter, with no real Slack/Jira/Zendesk calls by default.
 
 The ticket is separate from the feedback record because feedback is source data, analysis is AI interpretation, and workflow is operational execution. Keeping those concerns apart makes retries, audit, and manual overrides easier to reason about.
+
+## Phase 7 Evaluation Flow
+
+Phase 7 adds an evaluation domain that measures the AI pipeline without mixing benchmark logic into retrieval, analysis, or workflow modules:
+
+1. `EvaluationDatasetLoader` loads golden examples from JSON.
+2. `EvaluationService` runs retrieval and LLM analysis for each example.
+3. Pure metric functions compare retrieved evidence and structured predictions against expected labels.
+4. `EvaluationRepository` persists datasets, runs, and per-example results.
+5. `EvaluationReportGenerator` exports JSON and Markdown reports under the configured report directory.
+6. `app.api.v1.evaluation_routes` exposes run creation, listing, detail, and report retrieval.
+
+Evaluation does not create workflow tickets or production feedback records. It benchmarks predictions and derived workflow decisions so normal operational state remains separate from quality measurement.

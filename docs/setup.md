@@ -342,3 +342,42 @@ Install native Tesseract and verify `tesseract --version` in a new terminal.
 `sqlalchemy.exc.OperationalError`
 
 Verify PostgreSQL is running, `DATABASE_URL` points to the right host, and migrations have been applied.
+# Phase 7 Evaluation Setup
+
+Normal tests remain Docker-free:
+
+```powershell
+pytest
+```
+
+Run a local evaluation through the CLI:
+
+```powershell
+python .\scripts\run_evaluation.py --provider rule_based --top-k 3
+
+Run a specific dataset from the repo root:
+
+```powershell
+python .\scripts\run_evaluation.py --dataset .\app\domain\evaluation\fixtures\feedback_eval_seed.json --provider rule_based --top-k 3
+```
+
+The CLI defaults to a deterministic fixture retriever so the command works from the repo root without downloading embedding models. Add `--live-retrieval` to benchmark the configured vector and embedding providers.
+```
+
+The default seed dataset is:
+
+```text
+app/domain/evaluation/fixtures/feedback_eval_seed.json
+```
+
+Reports are written to:
+
+```text
+eval_reports/
+```
+
+For full-stack verification with PostgreSQL, Redis, Qdrant, Alembic, API, CLI, and pytest:
+
+```powershell
+.\scripts\verify_phase7_live.ps1
+```
